@@ -149,7 +149,10 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
             nftWhiteListContract.isWhiteListed(_hostContract),
             "The NFT hosting contract is not in whitelist"
         );
-        require(_startTime >= block.timestamp, "Listing auction start time past already");
+        // The start time is optional for fixed price, it will start to sell immediately after add to marketplace.
+        if (_sellMode != SellMode.FixedPrice) {
+            require(_startTime >= block.timestamp, "Listing auction start time past already");
+        }
         require(_duration > 0, "Invalid duration");
 
         if (_sellMode == SellMode.FixedPrice) {
@@ -248,10 +251,7 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
 
     function removeListing(bytes32 listingId) external nonReentrant {
         listing storage lst = listingRegistry[listingId];
-        require(
-            lst.startTime + lst.duration < block.timestamp,
-            "The listing haven't expired"
-        );
+        require(lst.startTime + lst.duration < block.timestamp, "The listing haven't expired");
         require(lst.seller == msg.sender, "Only seller can remove");
         require(lst.biddingIds.length == 0, "Already received bidding, cannot close");
 
@@ -289,10 +289,7 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
         emit NftTransfer(to, _hostContract, _tokenId);
     }
 
-    function setFireNftContract(address _address)
-        external
-        onlyOwner
-    {
+    function setFireNftContract(address _address) external onlyOwner {
         require(_address != address(0), "Invalid address");
         fireNftContractAddress = _address;
     }
@@ -309,10 +306,7 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
         return this.onERC721Received.selector;
     }
 
-    function setNftWhiteListContract(INftWhiteList _whitelistContract)
-        external
-        onlyOwner
-    {
+    function setNftWhiteListContract(INftWhiteList _whitelistContract) external onlyOwner {
         nftWhiteListContract = _whitelistContract;
     }
 
@@ -322,10 +316,7 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
      * @param _fee: the fee rate
      * @param _burnRate: the burn fee rate
      */
-    function updateFeeRate(
-        uint256 _feeRate,
-        uint256 _royaltiesFeeRate
-    ) external onlyOwner {
+    function updateFeeRate(uint256 _feeRate, uint256 _royaltiesFeeRate) external onlyOwner {
         require(_feeRate <= MAXIMUM_FEE_RATE, "Invalid fee rate");
         require(_royaltiesFeeRate <= MAXIMUM_ROYALTIES_FEE_RATE, "Invalid royalty fee rate");
 
