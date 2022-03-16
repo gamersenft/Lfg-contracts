@@ -9,6 +9,7 @@ const SAMContractArt = hre.artifacts.require("SAMContract");
 const BurnTokenArt = hre.artifacts.require("BurnToken");
 const BN = require("bn.js");
 const { createImportSpecifier } = require("typescript");
+const { BigNumber } = require('bignumber.js');
 
 describe("SAMContract", function () {
   let LFGToken = null;
@@ -77,7 +78,9 @@ describe("SAMContract", function () {
     assert.equal(listingResult.length, 1);
     let listingId = listingResult[0];
 
-    const testDepositAmount = "100000000000000000000000";
+    //const testDepositAmount = "100000000000000000000000";
+    const testDepositAmount = BigNumber("50").times(BigNumber("10").pow(18)).toString();
+    console.log("testDepositAmount ", testDepositAmount.toString());
     await LFGToken.transfer(accounts[1], testDepositAmount);
 
     let balance = await LFGToken.balanceOf(accounts[1]);
