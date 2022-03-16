@@ -109,6 +109,7 @@ contract SAMContract is SAMContractBase {
         require(block.timestamp >= lst.startTime, "The auction haven't start");
         require(lst.startTime + lst.duration >= block.timestamp, "The auction already expired");
         require(msg.sender != lst.seller, "Bidder cannot be seller");
+        require(lfgToken.allowance(msg.sender, address(this)) >= price, "Not enough allowance");
 
         uint256 minPrice = lst.price;
         // The last element is the current highest price
@@ -177,6 +178,12 @@ contract SAMContract is SAMContractBase {
         require(msg.sender != lst.seller, "Buyer cannot be seller");
 
         uint256 price = getPrice(listingId);
+
+        require(
+            lfgToken.allowance(msg.sender, address(this)) >=
+                price + (price * feeRate) / FEE_RATE_BASE,
+            "Not enough allowance"
+        );
 
         _processFee(msg.sender, price);
 
