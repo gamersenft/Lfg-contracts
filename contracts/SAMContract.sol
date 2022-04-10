@@ -104,19 +104,34 @@ contract SAMContract is SAMContractBase {
     function placeBid(bytes32 listingId, uint256 price) external nonReentrant {
         listing storage lst = listingRegistry[listingId];
         require(lst.sellMode == SellMode.Auction, "Can only bid for listing on auction");
-        require(block.timestamp >= lst.startTime, "The auction haven't start");
+        require(block.timestamp >= lst.startTime, "The auction hasn't started yet");
         require(lst.startTime + lst.duration >= block.timestamp, "The auction already expired");
         require(msg.sender != lst.seller, "Bidder cannot be seller");
 
         uint256 minPrice = lst.price;
-        // The last element is the current highest price
-        if (lst.biddingIds.length > 0) {
-            bytes32 lastBiddingId = lst.biddingIds[lst.biddingIds.length - 1];
-            minPrice = biddingRegistry[lastBiddingId].price;
-        }
+        bytes32 last_valid_biddingId = lst.biddingId;
 
+        if (last_valid_biddingId != 0) {
+            uint256 last_valid_bidding_price = biddingRegistry[last_valid_biddingId].price;
+            if (last_valid_bidding_price > minPrice) {
+                minPrice = last_valid_bidding_price;
+            }
+        }
+            
         require(price > minPrice, "Bid price too low");
 
+        // this is a lower price bid before, need to return Token back to the buyer 
+        if (last_valid_biddingId != 0) {
+            _transferToken(
+                lst.seller,
+                biddingRegistry[last_valid_biddingId].bidder,
+                biddingRegistry[last_valid_biddingId].price
+            );
+            // to-do: do we need below
+            // _removeListing(last_valid_biddingId, biddingRegistry[last_valid_biddingId].bidder);
+        }
+
+        // to-do: is this correct?
         _depositToken(msg.sender, price);
 
         bytes32 biddingId = keccak256(
@@ -130,7 +145,7 @@ contract SAMContract is SAMContractBase {
 
         operationNonce++;
 
-        lst.biddingIds.push(biddingId);
+        lst.biddingId = biddingId;
 
         addrBiddingIds[msg.sender].push(biddingId);
 
@@ -211,12 +226,8 @@ contract SAMContract is SAMContractBase {
             lst.startTime + lst.duration < block.timestamp,
             "The bidding period haven't complete"
         );
-        for (uint256 i = 0; i < lst.biddingIds.length; ++i) {
-            bytes32 tmpId = lst.biddingIds[i];
-            if (biddingRegistry[tmpId].price > bid.price) {
-                require(false, "The bidding is not the highest price");
-            }
-        }
+
+        require(lst.biddingId == biddingId, "The bidding is not the highest price");
 
         _processFee(msg.sender, bid.price);
         _transferNft(lst.id, msg.sender, lst.hostContract, lst.tokenId);
@@ -233,18 +244,6 @@ contract SAMContract is SAMContractBase {
         }
 
         emit ClaimNFT(lst.id, biddingId, msg.sender);
-
-        // Refund the failed bidder
-        for (uint256 i = 0; i < lst.biddingIds.length; ++i) {
-            bytes32 tmpId = lst.biddingIds[i];
-            if (tmpId != biddingId) {
-                _transferToken(
-                    biddingRegistry[tmpId].bidder,
-                    biddingRegistry[tmpId].bidder,
-                    biddingRegistry[tmpId].price
-                );
-            }
-        }
 
         _removeListing(lst.id, lst.seller);
     }

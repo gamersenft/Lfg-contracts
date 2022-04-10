@@ -76,13 +76,23 @@ contract SAMContractGas is SAMContractBase {
         require(msg.sender != lst.seller, "Bidder cannot be seller");
 
         uint256 minPrice = lst.price;
-        // The last element is the current highest price
-        if (lst.biddingIds.length > 0) {
-            bytes32 lastBiddingId = lst.biddingIds[lst.biddingIds.length - 1];
-            minPrice = biddingRegistry[lastBiddingId].price;
+        bytes32 last_valid_biddingId = lst.biddingId;
+
+        if (last_valid_biddingId != 0) {
+            uint256 last_valid_bidding_price = biddingRegistry[last_valid_biddingId].price;
+            if (last_valid_bidding_price > minPrice) {
+                minPrice = last_valid_bidding_price;
+            }
         }
 
         require(msg.value > minPrice, "Bid price too low");
+
+        if (last_valid_biddingId != 0) {
+                addrTokens[biddingRegistry[last_valid_biddingId].bidder].lockedAmount -= biddingRegistry[last_valid_biddingId].price;
+                addrTokens[biddingRegistry[last_valid_biddingId].bidder].claimableAmount += biddingRegistry[last_valid_biddingId].price;
+                // to-do: do we need below
+                // _removeListing(last_valid_biddingId, biddingRegistry[last_valid_biddingId].bidder);
+        }
 
         addrTokens[msg.sender].lockedAmount += msg.value;
         totalEscrowAmount += msg.value;
@@ -98,7 +108,7 @@ contract SAMContractGas is SAMContractBase {
 
         operationNonce++;
 
-        lst.biddingIds.push(biddingId);
+        lst.biddingId = biddingId;
 
         addrBiddingIds[msg.sender].push(biddingId);
 
@@ -182,12 +192,7 @@ contract SAMContractGas is SAMContractBase {
             "The bidding period haven't complete"
         );
 
-        for (uint256 i = 0; i < lst.biddingIds.length; ++i) {
-            bytes32 tmpId = lst.biddingIds[i];
-            if (biddingRegistry[tmpId].price > bid.price) {
-                require(false, "The bidding is not the highest price");
-            }
-        }
+        require(lst.biddingId == biddingId, "The bidding is not the highest price");
 
         uint256 fee = (bid.price * feeRate) / FEE_RATE_BASE;
         require(msg.value >= fee, "Not enough gas to pay the fee");
@@ -204,17 +209,6 @@ contract SAMContractGas is SAMContractBase {
         addrTokens[lst.seller].claimableAmount += sellerAmount;
 
         emit ClaimNFT(lst.id, biddingId, msg.sender);
-
-        // Refund the failed bidder
-        for (uint256 i = 0; i < lst.biddingIds.length; ++i) {
-            bytes32 tmpId = lst.biddingIds[i];
-            if (tmpId != biddingId) {
-                addrTokens[biddingRegistry[tmpId].bidder].lockedAmount -= biddingRegistry[tmpId]
-                    .price;
-                addrTokens[biddingRegistry[tmpId].bidder].claimableAmount += biddingRegistry[tmpId]
-                    .price;
-            }
-        }
 
         _removeListing(lst.id, lst.seller);
     }
