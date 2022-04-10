@@ -216,50 +216,50 @@ describe("SAMContract", function () {
     ).to.be.revertedWith("Bid price too low");
 
     await SAMContract.placeBid(listingId, "12000000", { from: accounts[4] });
-    // await SAMContract.placeBid(listingId, "15000000", { from: accounts[5] });
+    await SAMContract.placeBid(listingId, "15000000", { from: accounts[5] });
 
-    // const biddings = await SAMContract.biddingOfAddr(accounts[3]);
-    // console.log("Biddings of address: ", JSON.stringify(biddings));
+    const biddings = await SAMContract.biddingOfAddr(accounts[3]);
+    console.log("Biddings of address: ", JSON.stringify(biddings));
 
-    // await expect(
-    //   SAMContract.claimNft(biddings[0], { from: accounts[3] })
-    // ).to.be.revertedWith("The bidding period haven't complete");
+    await expect(
+      SAMContract.claimNft(biddings[0], { from: accounts[3] })
+    ).to.be.revertedWith("The bidding period haven't complete");
 
-    // const today = Math.round(new Date() / 1000);
-    // await hre.network.provider.send("evm_setNextBlockTimestamp", [
-    //   today + 3601 * 24,
-    // ]);
-    // await hre.network.provider.send("evm_mine");
+    const today = Math.round(new Date() / 1000);
+    await hre.network.provider.send("evm_setNextBlockTimestamp", [
+      today + 3601 * 24,
+    ]);
+    await hre.network.provider.send("evm_mine");
 
-    // await expect(
-    //   SAMContract.claimNft(biddings[0], { from: accounts[3] })
-    // ).to.be.revertedWith("The bidding is not the highest price");
+    await expect(
+      SAMContract.claimNft(biddings[0], { from: accounts[3] })
+    ).to.be.revertedWith("The bidding is not the highest price");
 
-    // const biddingsOfAddr5 = await SAMContract.biddingOfAddr(accounts[5]);
+    const biddingsOfAddr5 = await SAMContract.biddingOfAddr(accounts[5]);
 
-    // await SAMContract.claimNft(biddingsOfAddr5[0], { from: accounts[5] });
-    // listingResult = await SAMContract.listingOfAddr(accounts[2]);
-    // assert.equal(listingResult.length, 0);
+    await SAMContract.claimNft(biddingsOfAddr5[0], { from: accounts[5] });
+    listingResult = await SAMContract.listingOfAddr(accounts[2]);
+    assert.equal(listingResult.length, 0);
 
-    // let balanceOfAccount2 = await LFGToken.balanceOf(accounts[2]);
-    // console.log("Balance of account 2 ", balanceOfAccount2.toString());
-    // assert.equal(balanceOfAccount2.toString(), "35000000");
+    let balanceOfAccount2 = await LFGToken.balanceOf(accounts[2]);
+    console.log("Balance of account 2 ", balanceOfAccount2.toString());
+    assert.equal(balanceOfAccount2.toString(), "35000000");
 
-    // // Account 3 bid failed, should be auto refunded
-    // let balanceOfAccount3 = await LFGToken.balanceOf(accounts[3]);
-    // console.log("Balance of account 3 ", balanceOfAccount3.toString());
-    // assert.equal(balanceOfAccount3.toString(), testDepositAmount);
+    // Account 3 bid failed, should be auto refunded
+    let balanceOfAccount3 = await LFGToken.balanceOf(accounts[3]);
+    console.log("Balance of account 3 ", balanceOfAccount3.toString());
+    assert.equal(balanceOfAccount3.toString(), testDepositAmount);
 
-    // let burnAmount = await LFGToken.balanceOf(burnAddress);
-    // console.log("Burn amount ", burnAmount.toString());
-    // assert.equal(burnAmount.toString(), "437500");
+    let burnAmount = await LFGToken.balanceOf(burnAddress);
+    console.log("Burn amount ", burnAmount.toString());
+    assert.equal(burnAmount.toString(), "437500");
 
-    // let revenueAmount = await SAMContract.revenueAmount();
-    // assert.equal(revenueAmount.toString(), "437500");
+    let revenueAmount = await SAMContract.revenueAmount();
+    assert.equal(revenueAmount.toString(), "437500");
 
-    // let revenueBalance = await LFGToken.balanceOf(revenueAddress);
-    // console.log("Revenue account balance ", revenueBalance.toString());
-    // assert.equal(revenueBalance.toString(), "437500");
+    let revenueBalance = await LFGToken.balanceOf(revenueAddress);
+    console.log("Revenue account balance ", revenueBalance.toString());
+    assert.equal(revenueBalance.toString(), "437500");
   });
 
   it("test remove listing ", async function () {

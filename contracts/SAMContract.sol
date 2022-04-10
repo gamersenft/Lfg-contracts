@@ -123,7 +123,7 @@ contract SAMContract is SAMContractBase {
         // this is a lower price bid before, need to return Token back to the buyer 
         if (last_valid_biddingId != 0) {
             _transferToken(
-                lst.seller,
+                biddingRegistry[last_valid_biddingId].bidder,
                 biddingRegistry[last_valid_biddingId].bidder,
                 biddingRegistry[last_valid_biddingId].price
             );
