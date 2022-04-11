@@ -69,29 +69,23 @@ contract SAMContractGas is SAMContractBase {
         listing storage lst = listingRegistry[listingId];
         require(lst.sellMode == SellMode.Auction, "Can only bid for listing on auction");
         require(block.timestamp >= lst.startTime, "The auction haven't start");
-        require(
-            lst.startTime + lst.duration >= block.timestamp,
-            "The auction already expired"
-        );
+        require(lst.startTime + lst.duration >= block.timestamp, "The auction already expired");
         require(msg.sender != lst.seller, "Bidder cannot be seller");
 
         uint256 minPrice = lst.price;
-        bytes32 last_valid_biddingId = lst.biddingId;
 
-        if (last_valid_biddingId != 0) {
-            uint256 last_valid_bidding_price = biddingRegistry[last_valid_biddingId].price;
-            if (last_valid_bidding_price > minPrice) {
-                minPrice = last_valid_bidding_price;
-            }
+        if (lst.biddingId != 0) {
+            minPrice = biddingRegistry[lst.biddingId].price;
         }
 
         require(msg.value > minPrice, "Bid price too low");
 
-        if (last_valid_biddingId != 0) {
-                addrTokens[biddingRegistry[last_valid_biddingId].bidder].lockedAmount -= biddingRegistry[last_valid_biddingId].price;
-                addrTokens[biddingRegistry[last_valid_biddingId].bidder].claimableAmount += biddingRegistry[last_valid_biddingId].price;
-                // to-do: do we need below
-                // _removeListing(last_valid_biddingId, biddingRegistry[last_valid_biddingId].bidder);
+        if (lst.biddingId != 0) {
+            addrTokens[biddingRegistry[lst.biddingId].bidder]
+                .lockedAmount -= biddingRegistry[lst.biddingId].price;
+            addrTokens[biddingRegistry[lst.biddingId].bidder]
+                .claimableAmount += biddingRegistry[lst.biddingId].price;
+            _removeBidding(lst.biddingId, biddingRegistry[lst.biddingId].bidder);
         }
 
         addrTokens[msg.sender].lockedAmount += msg.value;
@@ -100,7 +94,7 @@ contract SAMContractGas is SAMContractBase {
         bytes32 biddingId = keccak256(
             abi.encodePacked(operationNonce, lst.hostContract, lst.tokenId)
         );
-        biddingRegistry[biddingId].id = biddingId;
+        //biddingRegistry[biddingId].id = biddingId;
         biddingRegistry[biddingId].bidder = msg.sender;
         biddingRegistry[biddingId].listingId = listingId;
         biddingRegistry[biddingId].price = msg.value;
@@ -150,10 +144,7 @@ contract SAMContractGas is SAMContractBase {
         listing storage lst = listingRegistry[listingId];
         require(lst.sellMode != SellMode.Auction, "Auction not support buy now");
         require(block.timestamp >= lst.startTime, "The auction haven't start");
-        require(
-            lst.startTime + lst.duration >= block.timestamp,
-            "The auction already expired"
-        );
+        require(lst.startTime + lst.duration >= block.timestamp, "The auction already expired");
         require(msg.sender != lst.seller, "Buyer cannot be seller");
 
         uint256 price = getPrice(listingId);
@@ -171,7 +162,7 @@ contract SAMContractGas is SAMContractBase {
 
         addrTokens[lst.seller].claimableAmount += sellerAmount;
         revenueAmount += msg.value - price;
-        _transferNft(listingId, msg.sender, lst.hostContract, lst.tokenId);
+        _transferNft(msg.sender, lst.hostContract, lst.tokenId);
 
         emit BuyNow(listingId, msg.sender, price);
 
@@ -198,7 +189,7 @@ contract SAMContractGas is SAMContractBase {
         require(msg.value >= fee, "Not enough gas to pay the fee");
         revenueAmount += msg.value;
 
-        _transferNft(lst.id, msg.sender, lst.hostContract, lst.tokenId);
+        _transferNft(msg.sender, lst.hostContract, lst.tokenId);
 
         uint256 sellerAmount = bid.price;
         if (_checkRoyalties(lst.hostContract)) {
@@ -208,9 +199,9 @@ contract SAMContractGas is SAMContractBase {
         addrTokens[msg.sender].lockedAmount -= bid.price;
         addrTokens[lst.seller].claimableAmount += sellerAmount;
 
-        emit ClaimNFT(lst.id, biddingId, msg.sender);
+        emit ClaimNFT(bid.listingId, biddingId, msg.sender);
 
-        _removeListing(lst.id, lst.seller);
+        _removeListing(bid.listingId, lst.seller);
     }
 
     /*

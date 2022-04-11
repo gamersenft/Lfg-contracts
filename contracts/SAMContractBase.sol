@@ -61,7 +61,7 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
 
     // listing detail
     struct listing {
-        bytes32 id; // The listing id
+        //bytes32 id; // The listing id
         address seller; // The owner of the NFT who want to sell it
         address hostContract; // The source of the contract
         uint256 tokenId; // The NFT token ID
@@ -77,7 +77,7 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
 
     // bidding detail
     struct bidding {
-        bytes32 id; // The bidding id
+        //bytes32 id; // The bidding id
         address bidder; // User who submit the bidding
         bytes32 listingId; // The target listing id
         uint256 price; // The bidder price
@@ -116,7 +116,7 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
         uint256 tokenId; // The NFT token ID
     }
 
-    mapping(bytes32 => nftItem) public nftItems;
+    //mapping(bytes32 => nftItem) public nftItems;
 
     uint256 public totalEscrowAmount;
 
@@ -162,9 +162,9 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
 
         bytes32 listingId = keccak256(abi.encodePacked(operationNonce, _hostContract, _tokenId));
 
-        _depositNft(listingId, msg.sender, _hostContract, _tokenId);
+        _depositNft(msg.sender, _hostContract, _tokenId);
 
-        listingRegistry[listingId].id = listingId;
+        //listingRegistry[listingId].id = listingId;
         listingRegistry[listingId].seller = msg.sender;
         listingRegistry[listingId].hostContract = _hostContract;
         listingRegistry[listingId].tokenId = _tokenId;
@@ -250,6 +250,22 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
         emit ListingRemoved(listingId, seller);
     }
 
+    function _removeBidding(bytes32 biddingId, address bidder) internal {
+        uint256 length = addrBiddingIds[bidder].length;
+        for (uint256 index = 0; index < length; ++index) {
+            // Move the last element to the index need to remove
+            if (addrBiddingIds[bidder][index] == biddingId && index != length - 1) {
+                addrBiddingIds[bidder][index] = addrBiddingIds[bidder][length - 1];
+            }
+        }
+        // Remove the last element
+        addrBiddingIds[bidder].pop();
+
+        // Delete from the mapping
+        delete biddingRegistry[biddingId];
+    }
+
+
     /*
      * @notice Remove a listing from the marketplace, can only remove if the duration finished and
      *         the item didn't receive any bid(For auction item).
@@ -259,16 +275,15 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
         listing storage lst = listingRegistry[listingId];
         require(lst.startTime + lst.duration < block.timestamp, "The listing haven't expired");
         require(lst.seller == msg.sender, "Only seller can remove");
-        require(lst.biddingId != 0, "Already received bidding, cannot close");
+        require(lst.biddingId == 0, "Already received bidding, cannot close");
 
         // return the NFT to seller
-        _transferNft(listingId, msg.sender, lst.hostContract, lst.tokenId);
+        _transferNft(msg.sender, lst.hostContract, lst.tokenId);
 
-        _removeListing(lst.id, lst.seller);
+        _removeListing(listingId, lst.seller);
     }
 
     function _depositNft(
-        bytes32 listingId,
         address from,
         address _hostContract,
         uint256 _tokenId
@@ -281,15 +296,14 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
             nftContract.safeTransferFrom(from, address(this), _tokenId, 1, "0x0");
         }
 
-        nftItems[listingId] = nftItem({
-            owner: from,
-            hostContract: _hostContract,
-            tokenId: _tokenId
-        });
+        // nftItems[listingId] = nftItem({
+        //     owner: from,
+        //     hostContract: _hostContract,
+        //     tokenId: _tokenId
+        // });
     }
 
     function _transferNft(
-        bytes32 listingId,
         address to,
         address _hostContract,
         uint256 _tokenId
@@ -302,7 +316,7 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
             nftContract.safeTransferFrom(address(this), to, _tokenId, 1, "0x0");
         }
 
-        delete nftItems[listingId];
+        //delete nftItems[listingId];
     }
 
     /*
@@ -336,7 +350,7 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
         uint256,
         uint256,
         bytes calldata
-    ) public returns (bytes4) {
+    ) public pure returns (bytes4) {
         return this.onERC1155Received.selector;
     }
 

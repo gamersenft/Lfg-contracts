@@ -13,7 +13,8 @@ async function getBiddingOfAddr(samContract, addr) {
   let results = new Array();
   for (let index in biddingIds) {
     const biddingId = biddingIds[index];
-    const biddingInfo = await samContract.biddingRegistry(biddingId);
+    let biddingInfo = await samContract.biddingRegistry(biddingId);
+    biddingInfo["id"] = biddingId;
     results.push(biddingInfo);
   }
   console.log("getBiddingOfAddr result: ", JSON.stringify(results));
@@ -233,9 +234,13 @@ describe("SAMContractGas", function () {
     console.log("Biddings of address: ", JSON.stringify(biddingIds));
 
     const biddingDetails = await getBiddingOfAddr(SAMContractGas, accounts[3]);
+    assert.equal(biddingDetails.length, 0);
+
+    const biddingsOfAddr5 = await getBiddingOfAddr(SAMContractGas, accounts[5]);
+    console.log("biddingsOfAddr5 ", JSON.stringify(biddingsOfAddr5));
 
     await expect(
-      SAMContractGas.claimNft(biddingDetails[0][0], { from: accounts[3] })
+      SAMContractGas.claimNft(biddingsOfAddr5[0]["id"], { from: accounts[5] })
     ).to.be.revertedWith("The bidding period haven't complete");
 
     const today = Math.round(new Date() / 1000);
@@ -244,13 +249,11 @@ describe("SAMContractGas", function () {
     ]);
     await hre.network.provider.send("evm_mine");
 
-    await expect(
-      SAMContractGas.claimNft(biddingDetails[0][0], { from: accounts[3] })
-    ).to.be.revertedWith("The bidding is not the highest price");
+    // await expect(
+    //   SAMContractGas.claimNft(biddingDetails[0][0], { from: accounts[3] })
+    // ).to.be.revertedWith("The bidding is not the highest price");
 
-    const biddingsOfAddr5 = await getBiddingOfAddr(SAMContractGas, accounts[5]);
-
-    await SAMContractGas.claimNft(biddingsOfAddr5[0][0], {
+    await SAMContractGas.claimNft(biddingsOfAddr5[0]["id"], {
       from: accounts[5],
       value: "37500000000000000",
     });

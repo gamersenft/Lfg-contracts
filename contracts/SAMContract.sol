@@ -109,26 +109,21 @@ contract SAMContract is SAMContractBase {
         require(msg.sender != lst.seller, "Bidder cannot be seller");
 
         uint256 minPrice = lst.price;
-        bytes32 last_valid_biddingId = lst.biddingId;
 
-        if (last_valid_biddingId != 0) {
-            uint256 last_valid_bidding_price = biddingRegistry[last_valid_biddingId].price;
-            if (last_valid_bidding_price > minPrice) {
-                minPrice = last_valid_bidding_price;
-            }
+        if (lst.biddingId != 0) {
+            minPrice = biddingRegistry[lst.biddingId].price;
         }
-            
+
         require(price > minPrice, "Bid price too low");
 
-        // this is a lower price bid before, need to return Token back to the buyer 
-        if (last_valid_biddingId != 0) {
+        // this is a lower price bid before, need to return Token back to the buyer
+        if (lst.biddingId != 0) {
             _transferToken(
-                biddingRegistry[last_valid_biddingId].bidder,
-                biddingRegistry[last_valid_biddingId].bidder,
-                biddingRegistry[last_valid_biddingId].price
+                biddingRegistry[lst.biddingId].bidder,
+                biddingRegistry[lst.biddingId].bidder,
+                biddingRegistry[lst.biddingId].price
             );
-            // to-do: do we need below
-            // _removeListing(last_valid_biddingId, biddingRegistry[last_valid_biddingId].bidder);
+            _removeBidding(lst.biddingId, biddingRegistry[lst.biddingId].bidder);
         }
 
         // to-do: is this correct?
@@ -137,7 +132,7 @@ contract SAMContract is SAMContractBase {
         bytes32 biddingId = keccak256(
             abi.encodePacked(operationNonce, lst.hostContract, lst.tokenId)
         );
-        biddingRegistry[biddingId].id = biddingId;
+        //biddingRegistry[biddingId].id = biddingId;
         biddingRegistry[biddingId].bidder = msg.sender;
         biddingRegistry[biddingId].listingId = listingId;
         biddingRegistry[biddingId].price = price;
@@ -202,7 +197,7 @@ contract SAMContract is SAMContractBase {
         }
 
         _transferToken(msg.sender, lst.seller, sellerAmount);
-        _transferNft(listingId, msg.sender, lst.hostContract, lst.tokenId);
+        _transferNft(msg.sender, lst.hostContract, lst.tokenId);
 
         if (lst.hostContract == fireNftContractAddress) {
             _burnTokenOnFireNft(price);
@@ -230,7 +225,7 @@ contract SAMContract is SAMContractBase {
         require(lst.biddingId == biddingId, "The bidding is not the highest price");
 
         _processFee(msg.sender, bid.price);
-        _transferNft(lst.id, msg.sender, lst.hostContract, lst.tokenId);
+        _transferNft(msg.sender, lst.hostContract, lst.tokenId);
 
         uint256 sellerAmount = bid.price;
         if (_checkRoyalties(lst.hostContract)) {
@@ -243,9 +238,9 @@ contract SAMContract is SAMContractBase {
             _burnTokenOnFireNft(bid.price);
         }
 
-        emit ClaimNFT(lst.id, biddingId, msg.sender);
+        emit ClaimNFT(bid.listingId, biddingId, msg.sender);
 
-        _removeListing(lst.id, lst.seller);
+        _removeListing(bid.listingId, lst.seller);
     }
 
     function _processFee(address buyer, uint256 price) internal {
@@ -255,7 +250,7 @@ contract SAMContract is SAMContractBase {
         SafeERC20.safeTransferFrom(lfgToken, buyer, revenueAddress, revenue);
         revenueAmount += revenue;
 
-        SafeERC20.safeTransferFrom(lfgToken,buyer, burnAddress, feeToBurn);
+        SafeERC20.safeTransferFrom(lfgToken, buyer, burnAddress, feeToBurn);
         totalBurnAmount += feeToBurn;
     }
 
