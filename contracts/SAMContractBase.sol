@@ -38,6 +38,8 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
 
     event ListingRemoved(bytes32 indexed listingId, address indexed sender);
 
+    event BiddingRemoved(bytes32 indexed biddingId, address indexed sender);
+
     event BiddingPlaced(bytes32 indexed biddingId, bytes32 listingId, uint256 price);
 
     event BuyNow(bytes32 indexed listingId, address indexed buyer, uint256 price);
@@ -115,8 +117,6 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
         address hostContract; // The source of the contract
         uint256 tokenId; // The NFT token ID
     }
-
-    //mapping(bytes32 => nftItem) public nftItems;
 
     uint256 public totalEscrowAmount;
 
@@ -233,16 +233,20 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
         return addrBiddingIds[addr];
     }
 
-    function _removeListing(bytes32 listingId, address seller) internal {
-        uint256 length = addrListingIds[seller].length;
+    function _removeItemFromArray(bytes32 listingId, bytes32[] storage arrayOfIds) internal {
+        uint256 length = arrayOfIds.length;
         for (uint256 index = 0; index < length; ++index) {
             // Move the last element to the index need to remove
-            if (addrListingIds[seller][index] == listingId && index != length - 1) {
-                addrListingIds[seller][index] = addrListingIds[seller][length - 1];
+            if (arrayOfIds[index] == listingId && index != length - 1) {
+                arrayOfIds[index] = arrayOfIds[length - 1];
             }
         }
         // Remove the last element
-        addrListingIds[seller].pop();
+        arrayOfIds.pop();
+    }
+
+    function _removeListing(bytes32 listingId, address seller) internal {
+        _removeItemFromArray(listingId, addrListingIds[seller]);
 
         // Delete from the mapping
         delete listingRegistry[listingId];
@@ -251,20 +255,13 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
     }
 
     function _removeBidding(bytes32 biddingId, address bidder) internal {
-        uint256 length = addrBiddingIds[bidder].length;
-        for (uint256 index = 0; index < length; ++index) {
-            // Move the last element to the index need to remove
-            if (addrBiddingIds[bidder][index] == biddingId && index != length - 1) {
-                addrBiddingIds[bidder][index] = addrBiddingIds[bidder][length - 1];
-            }
-        }
-        // Remove the last element
-        addrBiddingIds[bidder].pop();
+        _removeItemFromArray(biddingId, addrBiddingIds[bidder]);
 
         // Delete from the mapping
         delete biddingRegistry[biddingId];
-    }
 
+        emit BiddingRemoved(biddingId, bidder);
+    }
 
     /*
      * @notice Remove a listing from the marketplace, can only remove if the duration finished and
@@ -295,12 +292,6 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
             ERC1155 nftContract = ERC1155(_hostContract);
             nftContract.safeTransferFrom(from, address(this), _tokenId, 1, "0x0");
         }
-
-        // nftItems[listingId] = nftItem({
-        //     owner: from,
-        //     hostContract: _hostContract,
-        //     tokenId: _tokenId
-        // });
     }
 
     function _transferNft(
@@ -315,8 +306,6 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
             ERC1155 nftContract = ERC1155(_hostContract);
             nftContract.safeTransferFrom(address(this), to, _tokenId, 1, "0x0");
         }
-
-        //delete nftItems[listingId];
     }
 
     /*
