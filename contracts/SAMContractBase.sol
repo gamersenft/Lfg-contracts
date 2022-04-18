@@ -8,8 +8,8 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import "@openzeppelin/contracts/interfaces/IERC721.sol";
+import "@openzeppelin/contracts/interfaces/IERC1155.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "./interfaces/IERC2981.sol";
@@ -128,7 +128,7 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
     /// @param _contract - the address of the NFT contract to query
     /// @return true if ERC-2981 interface is supported, false otherwise
     function _checkRoyalties(address _contract) internal view returns (bool) {
-        bool success = ERC721(_contract).supportsInterface(_INTERFACE_ID_ERC2981);
+        bool success = IERC721(_contract).supportsInterface(_INTERFACE_ID_ERC2981);
         return success;
     }
 
@@ -437,10 +437,10 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
     ) internal {
         if (IERC165(_hostContract).supportsInterface(type(IERC721).interfaceId)) {
             require(_copies == 1, "ERC721 doesn't support copies");
-            ERC721 nftContract = ERC721(_hostContract);
+            IERC721 nftContract = IERC721(_hostContract);
             nftContract.safeTransferFrom(from, address(this), _tokenId);
         } else if (IERC165(_hostContract).supportsInterface(type(IERC1155).interfaceId)) {
-            ERC1155 nftContract = ERC1155(_hostContract);
+            IERC1155 nftContract = IERC1155(_hostContract);
             nftContract.safeTransferFrom(from, address(this), _tokenId, _copies, "0x0");
         }
     }
@@ -451,10 +451,10 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
         uint256 _tokenId
     ) internal {
         if (IERC165(_hostContract).supportsInterface(type(IERC721).interfaceId)) {
-            ERC721 nftContract = ERC721(_hostContract);
+            IERC721 nftContract = IERC721(_hostContract);
             nftContract.safeTransferFrom(address(this), to, _tokenId);
         } else if (IERC165(_hostContract).supportsInterface(type(IERC1155).interfaceId)) {
-            ERC1155 nftContract = ERC1155(_hostContract);
+            IERC1155 nftContract = IERC1155(_hostContract);
             nftContract.safeTransferFrom(address(this), to, _tokenId, 1, "0x0");
         }
     }
