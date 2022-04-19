@@ -6,10 +6,9 @@
     "test": "test"
   },
   "scripts": {
-    "test": "hardhat test",
-    "compile": "npx hardhat compile",
-    "verify:network": "hardhat verify",
-    "deploy":"npx hardhat run deploy/2_nft_marketplace.ts"
+    "test": "hardhat test --network hardhat",
+    "compile": "hardhat compile",
+    "verify:network": "hardhat verify --network"
   },
   "repository": {
     "type": "git",

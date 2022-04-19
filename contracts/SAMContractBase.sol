@@ -28,6 +28,7 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
         address indexed sender,
         address indexed hostContract,
         uint256 tokenId,
+        uint256 copyIndex,
         SellMode sellMode,
         uint256 _price,
         uint256 startTime,
@@ -110,13 +111,31 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
     // The nft whitelist contract
     INftWhiteList public nftWhiteListContract;
 
-    struct nftItem {
-        address owner; // The owner of the NFT
-        address hostContract; // The source of the contract
-        uint256 tokenId; // The NFT token ID
-    }
+    // The revenue address
+    address public revenueAddress;
+
+    // Total revenue amount
+    uint256 public revenueAmount;
+
+    mapping(address => uint256) public addrTokens;
 
     uint256 public totalEscrowAmount;
+
+    constructor(
+        address _owner,
+        INftWhiteList _nftWhiteList,
+        address _revenueAddress
+    ) {
+        require(_owner != address(0), "Invalid owner address");
+        _transferOwnership(_owner);
+        nftWhiteListContract = _nftWhiteList;
+
+        require(_owner != address(0), "Invalid revenue address");
+        revenueAddress = _revenueAddress;
+
+        feeRate = 250; // 2.5%
+        royaltiesFeeRate = 500; // Default 5% royalties fee.
+    }
 
     /// @notice Checks if NFT contract implements the ERC-2981 interface
     /// @param _contract - the address of the NFT contract to query
@@ -133,6 +152,7 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
     function _addListing(
         address _hostContract,
         uint256 _tokenId,
+        uint256 _copies,
         SellMode _sellMode,
         uint256 _price,
         uint256 _startTime,
@@ -151,6 +171,8 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
             require(_duration > 0, "Invalid duration");
         }
 
+        require(_copies > 0, "The NFT copies should larger than 0");
+
         if (_sellMode == SellMode.FixedPrice) {
             require(_price > 0, "Invalid fixed price");
         } else if (_sellMode == SellMode.Auction) {
@@ -164,35 +186,165 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
             );
         }
 
-        bytes32 listingId = keccak256(abi.encodePacked(operationNonce, _hostContract, _tokenId));
+        _depositNft(msg.sender, _hostContract, _tokenId, _copies);
 
-        _depositNft(msg.sender, _hostContract, _tokenId);
+        for (uint256 index = 0; index < _copies; ++index) {
+            bytes32 listingId = keccak256(
+                abi.encodePacked(operationNonce, _hostContract, _tokenId)
+            );
 
-        listingRegistry[listingId].seller = msg.sender;
-        listingRegistry[listingId].hostContract = _hostContract;
-        listingRegistry[listingId].tokenId = _tokenId;
-        listingRegistry[listingId].sellMode = _sellMode;
-        listingRegistry[listingId].price = _price;
-        listingRegistry[listingId].startTime = _startTime;
-        listingRegistry[listingId].duration = _duration;
-        listingRegistry[listingId].discountInterval = _discountInterval;
-        listingRegistry[listingId].discountAmount = _discountAmount;
+            listingRegistry[listingId].seller = msg.sender;
+            listingRegistry[listingId].hostContract = _hostContract;
+            listingRegistry[listingId].tokenId = _tokenId;
+            listingRegistry[listingId].sellMode = _sellMode;
+            listingRegistry[listingId].price = _price;
+            listingRegistry[listingId].startTime = _startTime;
+            listingRegistry[listingId].duration = _duration;
+            listingRegistry[listingId].discountInterval = _discountInterval;
+            listingRegistry[listingId].discountAmount = _discountAmount;
+            operationNonce++;
+
+            addrListingIds[msg.sender].push(listingId);
+
+            emit ListingPlaced(
+                listingId,
+                msg.sender,
+                _hostContract,
+                _tokenId,
+                index,
+                _sellMode,
+                _price,
+                _startTime,
+                _duration,
+                _discountInterval,
+                _discountAmount
+            );
+        }
+    }
+
+    function _placeBid(bytes32 listingId, uint256 price) internal {
+        listing storage lst = listingRegistry[listingId];
+        require(lst.sellMode == SellMode.Auction, "Can only bid for listing on auction");
+        require(block.timestamp >= lst.startTime, "The auction hasn't started yet");
+        require(lst.startTime + lst.duration >= block.timestamp, "The auction already expired");
+        require(msg.sender != lst.seller, "Bidder cannot be seller");
+
+        uint256 minPrice = lst.price;
+
+        if (lst.biddingId != 0) {
+            minPrice = biddingRegistry[lst.biddingId].price;
+        }
+
+        require(price > minPrice, "Bid price too low");
+
+        // this is a lower price bid before, need to return Token back to the buyer
+        if (lst.biddingId != 0) {
+            address olderBidder = biddingRegistry[lst.biddingId].bidder;
+            _transferToken(olderBidder, olderBidder, biddingRegistry[lst.biddingId].price);
+            _removeBidding(lst.biddingId, olderBidder);
+        }
+
+        _depositToken(price);
+
+        bytes32 biddingId = keccak256(
+            abi.encodePacked(operationNonce, lst.hostContract, lst.tokenId)
+        );
+
+        biddingRegistry[biddingId].bidder = msg.sender;
+        biddingRegistry[biddingId].listingId = listingId;
+        biddingRegistry[biddingId].price = price;
+        biddingRegistry[biddingId].timestamp = block.timestamp;
+
         operationNonce++;
 
-        addrListingIds[msg.sender].push(listingId);
+        lst.biddingId = biddingId;
 
-        emit ListingPlaced(
-            listingId,
-            msg.sender,
-            _hostContract,
-            _tokenId,
-            _sellMode,
-            _price,
-            _startTime,
-            _duration,
-            _discountInterval,
-            _discountAmount
+        addrBiddingIds[msg.sender].push(biddingId);
+
+        emit BiddingPlaced(biddingId, listingId, price);
+    }
+
+    function _deduceRoyalties(
+        address _contract,
+        uint256 tokenId,
+        uint256 grossSaleValue
+    ) internal returns (uint256 netSaleAmount) {
+        // Get amount of royalties to pays and recipient
+        (address royaltiesReceiver, uint256 royaltiesAmount) = IERC2981(_contract).royaltyInfo(
+            tokenId,
+            grossSaleValue
         );
+        // Deduce royalties from sale value
+        uint256 netSaleValue = grossSaleValue - royaltiesAmount;
+        // Transfer royalties to rightholder if not zero
+        if (royaltiesAmount > 0) {
+            uint256 royaltyFee = (royaltiesAmount * royaltiesFeeRate) / FEE_RATE_BASE;
+            if (royaltyFee > 0) {
+                _transferToken(msg.sender, revenueAddress, royaltyFee);
+                revenueAmount += royaltyFee;
+
+                emit RoyaltiesFeePaid(_contract, tokenId, royaltyFee);
+            }
+
+            uint256 payToReceiver = royaltiesAmount - royaltyFee;
+            _transferToken(msg.sender, royaltiesReceiver, payToReceiver);
+
+            // Broadcast royalties payment
+            emit RoyaltiesPaid(_contract, tokenId, payToReceiver);
+        }
+
+        return netSaleValue;
+    }
+
+    function _buyNow(bytes32 listingId, uint256 price) internal returns (address hostContract) {
+        listing storage lst = listingRegistry[listingId];
+        require(lst.sellMode != SellMode.Auction, "Auction not support buy now");
+        // Only check for dutch auction, for fixed price there is no duration
+        if (lst.sellMode == SellMode.DutchAuction) {
+            require(block.timestamp >= lst.startTime, "The auction haven't start");
+            require(lst.startTime + lst.duration >= block.timestamp, "The auction already expired");
+        }
+        require(msg.sender != lst.seller, "Buyer cannot be seller");
+
+        hostContract = lst.hostContract;
+
+        _processFee(price);
+
+        // Deposit the tokens to market place contract.
+        _depositToken(price);
+
+        uint256 sellerAmount = price;
+        if (_checkRoyalties(lst.hostContract)) {
+            sellerAmount = _deduceRoyalties(lst.hostContract, lst.tokenId, price);
+        }
+
+        _transferToken(msg.sender, lst.seller, sellerAmount);
+        _transferNft(msg.sender, lst.hostContract, lst.tokenId);
+
+        emit BuyNow(listingId, msg.sender, price);
+
+        _removeListing(listingId, lst.seller);
+    }
+
+    function _claimNft(
+        bytes32 biddingId,
+        bidding storage bid,
+        listing storage lst
+    ) internal {
+        _processFee(bid.price);
+        _transferNft(msg.sender, lst.hostContract, lst.tokenId);
+
+        uint256 sellerAmount = bid.price;
+        if (_checkRoyalties(lst.hostContract)) {
+            sellerAmount = _deduceRoyalties(lst.hostContract, lst.tokenId, bid.price);
+        }
+
+        _transferToken(msg.sender, lst.seller, sellerAmount);
+
+        emit ClaimNFT(bid.listingId, biddingId, msg.sender);
+
+        _removeListing(bid.listingId, lst.seller);
+        _removeBidding(biddingId, bid.bidder);
     }
 
     function listingOfAddr(address addr) public view returns (bytes32[] memory) {
@@ -206,7 +358,7 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
      */
     function getPrice(bytes32 listingId) public view returns (uint256) {
         listing storage lst = listingRegistry[listingId];
-        require(lst.startTime > 0, "The listing doesn't exist");
+        require(lst.price > 0, "The listing doesn't exist");
 
         if (lst.sellMode == SellMode.DutchAuction) {
             uint256 timeElapsed;
@@ -290,14 +442,16 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
     function _depositNft(
         address from,
         address _hostContract,
-        uint256 _tokenId
+        uint256 _tokenId,
+        uint256 _copies
     ) internal {
         if (IERC165(_hostContract).supportsInterface(type(IERC721).interfaceId)) {
+            require(_copies == 1, "ERC721 doesn't support copies");
             ERC721 nftContract = ERC721(_hostContract);
             nftContract.safeTransferFrom(from, address(this), _tokenId);
         } else if (IERC165(_hostContract).supportsInterface(type(IERC1155).interfaceId)) {
             ERC1155 nftContract = ERC1155(_hostContract);
-            nftContract.safeTransferFrom(from, address(this), _tokenId, 1, "0x0");
+            nftContract.safeTransferFrom(from, address(this), _tokenId, _copies, "0x0");
         }
     }
 
@@ -360,7 +514,7 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
     }
 
     /*
-     * @notice Update the fee rate and burn fee rate from the burn amount
+     * @notice Update the transaction fee rate and royalties fee rate
      * @dev Only callable by owner.
      * @param _feeRate: the fee rate the contract charge.
      * @param _royaltiesFeeRate: the royalties fee rate the contract charge.
@@ -372,4 +526,39 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
         feeRate = _feeRate;
         royaltiesFeeRate = _royaltiesFeeRate;
     }
+
+    /*
+     * @notice Set the revenue address.
+     * @dev Only callable by owner.
+     * @param _revenueAddress: the revenue address
+     */
+    function setRevenueAddress(address _revenueAddress) external onlyOwner {
+        require(_revenueAddress != address(0), "Invalid revenue address");
+        revenueAddress = _revenueAddress;
+    }
+
+    /*
+     * @notice Process fee which is the revenue, some will burn if using LFG token.
+     * @param _price: The price of buy or bidding.
+     */
+    function _processFee(uint256 _price) internal virtual;
+
+    /*
+     * @notice User deposit the token for bidding, which will under escrow
+     * @param _amount: The amount to deposit.
+     */
+    function _depositToken(uint256 _amount) internal virtual;
+
+    /*
+     * @notice Transfer token from one address to another address, if they
+               are the same, means refund the escrowed token
+     * @param _from: The token transfer from.
+     * @param _to: The token transfer to.
+     * @param _from: The amount to transfer.
+     */
+    function _transferToken(
+        address _from,
+        address _to,
+        uint256 _amount
+    ) internal virtual;
 }

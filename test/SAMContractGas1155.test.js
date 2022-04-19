@@ -24,7 +24,7 @@ describe("SAMContractGas1155", function () {
   let NftWhiteList = null;
   let SAMContractGas = null;
   let accounts = ["", "", "", "", "", "", ""],
-    minter,
+    owner,
     revenueAddress;
 
   before("Deploy contract", async function () {
@@ -37,36 +37,38 @@ describe("SAMContractGas1155", function () {
         accounts[4],
         accounts[5],
         accounts[6],
-        minter,
+        owner,
         revenueAddress,
       ] = await web3.eth.getAccounts();
 
-      LFGNFT1155 = await LFGNFT1155Art.new(minter, "");
+      LFGNFT1155 = await LFGNFT1155Art.new(owner, "");
 
-      NftWhiteList = await NftWhiteListArt.new(minter);
+      NftWhiteList = await NftWhiteListArt.new(owner);
 
       SAMContractGas = await SAMContractGasArt.new(
-        minter,
-        NftWhiteList.address
+        owner,
+        NftWhiteList.address,
+        revenueAddress
       );
 
       // This one must call from owner
       await NftWhiteList.setNftContractWhitelist(LFGNFT1155.address, true, {
-        from: minter,
+        from: owner,
       });
 
       // 2.5% fee, 10% royalties fee.
-      await SAMContractGas.updateFeeRate(250, 1000, { from: minter });
+      await SAMContractGas.updateFeeRate(250, 1000, { from: owner });
     } catch (err) {
       console.log(err);
     }
   });
 
   it("test buy now feature", async function () {
-    let result = await LFGNFT1155.create(accounts[2], 2, "0x0", {
+    const emptyCollection = [];
+    let result = await LFGNFT1155.create(accounts[2], 2, emptyCollection, {
       from: accounts[2],
     });
-    result = await LFGNFT1155.create(accounts[2], 2, "0x0", {
+    result = await LFGNFT1155.create(accounts[2], 2, emptyCollection, {
       from: accounts[2],
     });
     let id = result["logs"][0]["args"]["id"];
@@ -82,12 +84,13 @@ describe("SAMContractGas1155", function () {
       from: accounts[2],
     });
 
-    const latestBlock = await hre.ethers.provider.getBlock("latest");
+    let latestBlock = await hre.ethers.provider.getBlock("latest");
     console.log("latestBlock ", latestBlock);
 
     await SAMContractGas.addListing(
       LFGNFT1155.address,
       id,
+      1, // copies
       0,
       "2000000000000000000",
       latestBlock["timestamp"] + 1,
@@ -139,25 +142,20 @@ describe("SAMContractGas1155", function () {
 
     let account2Tokens = await SAMContractGas.addrTokens(accounts[2]);
     console.log("Escrow tokens of account 2 ", JSON.stringify(account2Tokens));
-    assert.equal(
-      account2Tokens["claimableAmount"].toString(),
-      "2000000000000000000"
-    );
 
     listingResult = await SAMContractGas.listingOfAddr(accounts[2]);
     assert.equal(listingResult.length, 0);
 
-    await SAMContractGas.claimBalance({ from: accounts[2] });
     balanceOfAccount2 = await web3.eth.getBalance(accounts[2]);
     console.log("Balance of account 2 ", balanceOfAccount2.toString());
     assert.isAbove(
       parseInt(balanceOfAccount2.toString()),
-      10001999057036928800000
+      10001899057036928800000
     );
 
     account2Tokens = await SAMContractGas.addrTokens(accounts[2]);
     console.log("Escrow tokens of account 2 ", JSON.stringify(account2Tokens));
-    assert.equal(account2Tokens["claimableAmount"].toString(), "0");
+    assert.equal(account2Tokens.toString(), "0");
 
     let revenueAmount = await SAMContractGas.revenueAmount();
     assert.equal(revenueAmount.toString(), "50000000000000000");

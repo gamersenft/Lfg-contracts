@@ -60,6 +60,10 @@ describe("SAMContract", function () {
         revenueAddress
       );
 
+      // make sure the default fee rate is discounted.
+      const feeRateResult = await SAMContract.feeRate();
+      assert.equal(feeRateResult.toString(), "125");
+
       // This one must call from owner
       await NftWhiteList.setNftContractWhitelist(LFGNFT.address, true, {
         from: minter,
@@ -96,15 +100,31 @@ describe("SAMContract", function () {
 
     await LFGNFT.approve(SAMContract.address, 1, { from: accounts[2] });
 
-    const latestBlock = await hre.ethers.provider.getBlock("latest");
+    let latestBlock = await hre.ethers.provider.getBlock("latest");
     console.log("latestBlock ", latestBlock);
+
+    await expect(
+      SAMContract.addListing(
+        LFGNFT.address,
+        account2TokenIds[0],
+        2, // copies
+        0,
+        "20000000",
+        latestBlock["timestamp"] + 1,
+        3600 * 24,
+        0,
+        0,
+        { from: accounts[2] }
+      )
+    ).to.be.revertedWith("ERC721 doesn't support copies");
 
     await SAMContract.addListing(
       LFGNFT.address,
       account2TokenIds[0],
-      0,
+      1, // copies
+      0, // Fixed price mode
       "20000000",
-      latestBlock["timestamp"] + 1,
+      0, // Fixed price don't need start time
       3600 * 24,
       0,
       0,
@@ -175,11 +195,12 @@ describe("SAMContract", function () {
       from: accounts[2],
     });
 
-    const latestBlock = await hre.ethers.provider.getBlock("latest");
+    let latestBlock = await hre.ethers.provider.getBlock("latest");
     await SAMContract.addListing(
       LFGNFT.address,
       account2TokenIds[0],
-      1,
+      1, // copies
+      1, // sell mode auction
       "10000000",
       latestBlock["timestamp"] + 1,
       3600 * 24,
@@ -239,15 +260,15 @@ describe("SAMContract", function () {
     );
     assert.equal(acc3BalanceAfterOverTakeBid.toString(), testDepositAmount);
 
-    const biddingsOfAddr5 = await SAMContract.biddingOfAddr(accounts[5]);
+    let biddingsOfAddr5 = await SAMContract.biddingOfAddr(accounts[5]);
 
     await expect(
       SAMContract.claimNft(biddingsOfAddr5[0], { from: accounts[5] })
     ).to.be.revertedWith("The bidding period haven't complete");
 
-    const today = Math.round(new Date() / 1000);
+    latestBlock = await hre.ethers.provider.getBlock("latest");
     await hre.network.provider.send("evm_setNextBlockTimestamp", [
-      today + 3601 * 24,
+      latestBlock["timestamp"] + 3601 * 24,
     ]);
     await hre.network.provider.send("evm_mine");
 
@@ -258,6 +279,9 @@ describe("SAMContract", function () {
     await SAMContract.claimNft(biddingsOfAddr5[0], { from: accounts[5] });
     listingResult = await SAMContract.listingOfAddr(accounts[2]);
     assert.equal(listingResult.length, 0);
+
+    biddingsOfAddr5 = await SAMContract.biddingOfAddr(accounts[5]);
+    assert.equal(biddingsOfAddr5.length, 0);
 
     let balanceOfAccount2 = await LFGToken.balanceOf(accounts[2]);
     console.log("Balance of account 2 ", balanceOfAccount2.toString());
@@ -280,7 +304,7 @@ describe("SAMContract", function () {
     assert.equal(revenueBalance.toString(), "437500");
   });
 
-  it("test remove listing ", async function () {
+  it("test remove listing", async function () {
     let supply = await LFGNFT.totalSupply();
     console.log("supply ", supply.toString());
 
@@ -295,10 +319,11 @@ describe("SAMContract", function () {
       from: accounts[2],
     });
 
-    const latestBlock = await hre.ethers.provider.getBlock("latest");
+    let latestBlock = await hre.ethers.provider.getBlock("latest");
     await SAMContract.addListing(
       LFGNFT.address,
       account2TokenIds[0],
+      1, // copies
       1, // Auction
       "10000000",
       latestBlock["timestamp"] + 1,
@@ -319,9 +344,9 @@ describe("SAMContract", function () {
       SAMContract.removeListing(listingId, { from: accounts[2] })
     ).to.be.revertedWith("The listing haven't expired");
 
-    const today = Math.round(new Date() / 1000);
+    latestBlock = await hre.ethers.provider.getBlock("latest");
     await hre.network.provider.send("evm_setNextBlockTimestamp", [
-      today + 3601 * 48,
+      latestBlock["timestamp"] + 3601 * 48,
     ]);
     await hre.network.provider.send("evm_mine");
 
@@ -350,6 +375,7 @@ describe("SAMContract", function () {
     await SAMContract.addListing(
       LFGNFT.address,
       account2TokenIds[0],
+      1, // copies
       2,
       "10000000",
       latestBlock["timestamp"] + 1,
@@ -435,12 +461,13 @@ describe("SAMContract", function () {
       from: accounts[2],
     });
 
-    const latestBlock = await hre.ethers.provider.getBlock("latest");
+    let latestBlock = await hre.ethers.provider.getBlock("latest");
     console.log("latestBlock ", latestBlock);
 
     await SAMContract.addListing(
       LFGNFT.address,
       account2TokenIds[lastIndex],
+      1, // copies
       0,
       "20000000",
       latestBlock["timestamp"] + 1,
@@ -500,11 +527,12 @@ describe("SAMContract", function () {
     assert.equal(revenueBalance.toString(), "1197500");
   });
 
-  it("test burn token when fire NFT was sold", async function () {
+  it("test burn token when fire NFT was sold by fixed price", async function () {
     // Top up burn contract
     await LFGToken.transfer(BurnToken.address, "100000000000000000000000", {
       from: minter,
     });
+    // set burn rate to 10%
     await BurnToken.setBurnRate(1000, { from: minter });
     await SAMContract.setFireNftContract(LFGFireNFT.address, { from: minter });
     await SAMContract.setBurnTokenContract(BurnToken.address, { from: minter });
@@ -521,12 +549,13 @@ describe("SAMContract", function () {
 
     await LFGFireNFT.approve(SAMContract.address, 1, { from: accounts[2] });
 
-    const latestBlock = await hre.ethers.provider.getBlock("latest");
+    let latestBlock = await hre.ethers.provider.getBlock("latest");
     console.log("latestBlock ", latestBlock);
 
     await SAMContract.addListing(
       LFGFireNFT.address,
       account2TokenIds[0],
+      1, // copies
       0,
       "20000000",
       latestBlock["timestamp"] + 1,
@@ -581,6 +610,67 @@ describe("SAMContract", function () {
     assert.equal(totalBurnAmount.toString(), "2000000");
   });
 
+  it("test burn token when fire NFT was sold by auction", async function () {
+    let supply = await LFGFireNFT.totalSupply();
+    console.log("supply ", supply.toString());
+    let account2TokenIds = await LFGFireNFT.tokensOfOwner(accounts[2]);
+    console.log("tokenIds of account2 ", JSON.stringify(account2TokenIds));
+
+    await LFGFireNFT.approve(SAMContract.address, account2TokenIds[0], { from: accounts[2] });
+
+    let latestBlock = await hre.ethers.provider.getBlock("latest");
+    console.log("latestBlock ", latestBlock);
+
+    await SAMContract.addListing(
+      LFGFireNFT.address,
+      account2TokenIds[0],
+      1, // copies
+      1, // auction
+      "20000000",
+      latestBlock["timestamp"] + 1,
+      3600 * 24,
+      0,
+      0,
+      { from: accounts[2] }
+    );
+
+    let listingResult = await SAMContract.listingOfAddr(accounts[2]);
+    console.log("getListingResult ", JSON.stringify(listingResult));
+    assert.equal(listingResult.length, 1);
+    let listingId = listingResult[0];
+
+    await SAMContract.placeBid(listingId, 30000000, { from: accounts[1] });
+
+    const biddings = await SAMContract.biddingOfAddr(accounts[1]);
+    // Because the bidding was removed if other bidding with higher price
+    assert.equal(biddings.length, 1);
+
+    latestBlock = await hre.ethers.provider.getBlock("latest");
+    await hre.network.provider.send("evm_setNextBlockTimestamp", [
+      latestBlock["timestamp"] + 3601 * 24,
+    ]);
+    await hre.network.provider.send("evm_mine");
+
+    await SAMContract.claimNft(biddings[0], {from : accounts[1]});
+
+    let account1TokenIds = await LFGFireNFT.tokensOfOwner(accounts[1]);
+    console.log("tokenIds of account 1 ", JSON.stringify(account1TokenIds));
+    assert.equal(account1TokenIds[1], "2");
+
+    account2TokenIds = await LFGFireNFT.tokensOfOwner(accounts[2]);
+    console.log("tokenIds of account0 ", JSON.stringify(account2TokenIds));
+    assert.equal(account2TokenIds.length, 0);
+
+    // Check on the burn address 1 which is for the burn token contract
+    let burnAddrBal = await LFGToken.balanceOf(burnAddress1);
+    console.log("Burn address balance ", burnAddrBal.toString());
+    assert.equal(burnAddrBal.toString(), "5000000"); // 2000000 + 30000000 * 10% = 2000000 + 30000000
+
+    // Check the burn amount
+    let totalBurnAmount = await BurnToken.totalBurnAmount();
+    assert.equal(totalBurnAmount.toString(), "5000000");
+  });
+
   it("test remove listing for fixed price ", async function () {
     let account2TokenIds = await LFGNFT.tokensOfOwner(accounts[2]);
     console.log("tokenIds of account2 ", JSON.stringify(account2TokenIds));
@@ -592,6 +682,7 @@ describe("SAMContract", function () {
     await SAMContract.addListing(
       LFGNFT.address,
       account2TokenIds[0],
+      1, // copies
       0, // fixed price
       "10000000",
       0, // The start time no use
