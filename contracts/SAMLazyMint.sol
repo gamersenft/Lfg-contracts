@@ -65,7 +65,7 @@ contract SAMLazyMint is SAMLazyMintBase {
      * @notice Place bidding for the listing item, only support normal auction.
      * @dev The bidding price must higher than previous price.
      */
-    function placeBid(bytes32 listingId, uint256 price) external nonReentrant {
+    function placeBid(bytes32 listingId, uint256 price) external {
         listing storage lst = listingRegistry[listingId];
         require(lst.sellMode == SellMode.Auction, "Can only bid for listing on auction");
         require(block.timestamp >= lst.startTime, "The auction haven't start");
@@ -112,7 +112,7 @@ contract SAMLazyMint is SAMLazyMintBase {
         uint256 _duration,
         uint256 _discountInterval,
         uint256 _discountAmount
-    ) external nonReentrant {
+    ) external {
         _addListing(
             _collectionTag,
             _sellMode,
@@ -137,7 +137,7 @@ contract SAMLazyMint is SAMLazyMintBase {
         uint256 _duration,
         uint256 _discountInterval,
         uint256 _discountAmount
-    ) external nonReentrant {
+    ) external {
         for (uint256 i = 0; i < _collectionCount; ++i) {
             _addListing(
                 _collectionTag,
@@ -155,7 +155,7 @@ contract SAMLazyMint is SAMLazyMintBase {
      * @notice Immediately buy the NFT.
      * @dev If it is dutch auction, then the price is dutch auction price, if normal auction, then the price is buyNowPrice.
      */
-    function buyNow(bytes32 listingId) external nonReentrant {
+    function buyNow(bytes32 listingId) external {
         listing storage lst = listingRegistry[listingId];
         require(lst.sellMode != SellMode.Auction, "Auction not support buy now");
         require(block.timestamp >= lst.startTime, "The auction haven't start");
@@ -184,7 +184,7 @@ contract SAMLazyMint is SAMLazyMintBase {
      * @notice The highest bidder claim the NFT he bought.
      * @dev Can only claim after the auction period finished.
      */
-    function claimNft(bytes32 biddingId) external nonReentrant {
+    function claimNft(bytes32 biddingId) external {
         bidding storage bid = biddingRegistry[biddingId];
         require(bid.bidder == msg.sender, "Only bidder can claim NFT");
 

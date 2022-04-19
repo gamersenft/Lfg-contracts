@@ -19,7 +19,7 @@ contract SAMContractGas is SAMContractBase {
      * @notice Place bidding for the listing item, only support normal auction.
      * @dev The bidding price must higher than previous price.
      */
-    function placeBid(bytes32 listingId) external payable nonReentrant {
+    function placeBid(bytes32 listingId) external payable {
         _placeBid(listingId, msg.value);
     }
 
@@ -37,7 +37,7 @@ contract SAMContractGas is SAMContractBase {
         uint256 _duration,
         uint256 _discountInterval,
         uint256 _discountAmount
-    ) external nonReentrant {
+    ) external {
         require(_hostContract != samConfig.getFireNftAddress(), "FireNFT can only sell for LFG");
         _addListing(
             _hostContract,
@@ -56,7 +56,7 @@ contract SAMContractGas is SAMContractBase {
      * @notice Immediately buy the NFT.
      * @dev If it is dutch auction, then the price is dutch auction price, if normal auction, then the price is buyNowPrice.
      */
-    function buyNow(bytes32 listingId) external payable nonReentrant {
+    function buyNow(bytes32 listingId) external payable {
         uint256 price = getPrice(listingId);
         // For BNB, the value need to larger then the price + fee
         uint256 fee = (price * feeRate) / FEE_RATE_BASE;
@@ -95,7 +95,7 @@ contract SAMContractGas is SAMContractBase {
      * @notice The highest bidder claim the NFT he bought. The bidder need to pay 2.5% of bidding price for the fee.
      * @dev Can only claim after the auction period finished.
      */
-    function claimNft(bytes32 biddingId) external payable nonReentrant {
+    function claimNft(bytes32 biddingId) external payable {
         bidding storage bid = biddingRegistry[biddingId];
         require(bid.bidder == msg.sender, "Only bidder can claim NFT");
 

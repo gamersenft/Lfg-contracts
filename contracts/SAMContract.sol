@@ -35,7 +35,7 @@ contract SAMContract is SAMContractBase {
      * @notice Place bidding for the listing item, only support normal auction.
      * @dev The bidding price must higher than previous price.
      */
-    function placeBid(bytes32 listingId, uint256 price) external nonReentrant {
+    function placeBid(bytes32 listingId, uint256 price) external {
         _placeBid(listingId, price);
     }
 
@@ -53,7 +53,7 @@ contract SAMContract is SAMContractBase {
         uint256 _duration,
         uint256 _discountInterval,
         uint256 _discountAmount
-    ) external nonReentrant {
+    ) external {
         _addListing(
             _hostContract,
             _tokenId,
@@ -71,7 +71,7 @@ contract SAMContract is SAMContractBase {
      * @notice Immediately buy the NFT.
      * @dev If it is dutch auction, then the price is dutch auction price, if normal auction, then the price is buyNowPrice.
      */
-    function buyNow(bytes32 listingId) external nonReentrant {
+    function buyNow(bytes32 listingId) external {
         uint256 price = getPrice(listingId);
         address hostContract = _buyNow(listingId, price);
 
@@ -84,7 +84,7 @@ contract SAMContract is SAMContractBase {
      * @notice The highest bidder claim the NFT he bought.
      * @dev Can only claim after the auction period finished.
      */
-    function claimNft(bytes32 biddingId) external nonReentrant {
+    function claimNft(bytes32 biddingId) external {
         bidding storage bid = biddingRegistry[biddingId];
         require(bid.bidder == msg.sender, "Only bidder can claim NFT");
 

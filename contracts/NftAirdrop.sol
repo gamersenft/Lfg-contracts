@@ -125,7 +125,7 @@ contract NftAirdrop is Ownable, ReentrancyGuard, IERC721Receiver {
      * @return {bool} return status of distribution
      *
      */
-    function claimDistribution(uint256 tokenId) external nonReentrant returns (bool) {
+    function claimDistribution(uint256 tokenId) external returns (bool) {
         require(whitelistPools[msg.sender].active, "User is not in whitelist");
         require(!whitelistPools[msg.sender].claimed, "User already claimed NFT");
 

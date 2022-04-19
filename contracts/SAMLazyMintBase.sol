@@ -232,7 +232,7 @@ abstract contract SAMLazyMintBase is Ownable, ReentrancyGuard {
      *         the item didn't receive any bid(For auction item).
      * @param listingId: the listing want to remove.
      */
-    function removeListing(bytes32 listingId) external nonReentrant {
+    function removeListing(bytes32 listingId) external {
         listing storage lst = listingRegistry[listingId];
         require(lst.startTime + lst.duration < block.timestamp, "The listing haven't expired");
         require(lst.seller == msg.sender, "Only seller can remove");

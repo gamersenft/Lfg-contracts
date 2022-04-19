@@ -10,14 +10,13 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/interfaces/IERC721.sol";
 import "@openzeppelin/contracts/interfaces/IERC1155.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "./interfaces/IERC2981.sol";
 import "./interfaces/INftWhiteList.sol";
 import "./interfaces/ISAMConfig.sol";
 
 /// The contract is abstract so it cannnot be deployed.
-abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
+abstract contract SAMContractBase is Ownable, IERC721Receiver {
     enum SellMode {
         FixedPrice,
         Auction,
@@ -413,7 +412,7 @@ abstract contract SAMContractBase is Ownable, ReentrancyGuard, IERC721Receiver {
      *         the item didn't receive any bid(For auction item).
      * @param listingId: the listing want to remove.
      */
-    function removeListing(bytes32 listingId) external nonReentrant {
+    function removeListing(bytes32 listingId) external {
         listing storage lst = listingRegistry[listingId];
         // For fixed price sell, there is no duration limit,
         // so user should be remove it any time before it is sold.
