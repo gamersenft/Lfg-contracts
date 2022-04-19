@@ -181,7 +181,7 @@ contract SAMContractGas is SAMContractBase {
 
         listing storage lst = listingRegistry[bid.listingId];
         require(
-            lst.startTime + lst.duration < block.timestamp,
+             lst.duration < block.timestamp,
             "The bidding period haven't complete"
         );
 

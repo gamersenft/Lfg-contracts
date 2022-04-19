@@ -24,7 +24,9 @@ contract LFGFireNFT is ILFGNFT, ERC721Enumerable, Ownable {
         _;
     }
 
-    constructor() ERC721("LFGFireNFT", "LFGFireNFT") {}
+    constructor() ERC721("LFGFireNFT", "LFGFireNFT") {
+        
+    }
 
     /**************************
      ***** MINT FUNCTIONS *****
