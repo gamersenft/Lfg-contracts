@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import "./interfaces/IUserWhiteList.sol";
 
 contract LFGNFT1155 is ERC1155, IERC2981, Ownable {
     using Strings for uint256;
@@ -53,6 +54,8 @@ contract LFGNFT1155 is ERC1155, IERC2981, Ownable {
     // MAX royalty percent
     uint16 public constant MAX_ROYALTY = 2000;
 
+    IUserWhiteList userWlContract;
+
     /**
      * @dev Mapping of interface ids to whether or not it's supported.
      */
@@ -60,9 +63,15 @@ contract LFGNFT1155 is ERC1155, IERC2981, Ownable {
 
     bytes4 private constant _INTERFACE_ID_ERC2981 = 0x2a55205a;
 
-    constructor(address _owner, string memory uri_) ERC1155(uri_) {
+    constructor(
+        address _owner,
+        IUserWhiteList _userWlContract,
+        string memory uri_
+    ) ERC1155(uri_) {
         require(_owner != address(0), "Invalid owner address");
         _transferOwnership(_owner);
+
+        userWlContract = _userWlContract;
 
         _registerInterface(_INTERFACE_ID_ERC2981);
     }
@@ -105,6 +114,10 @@ contract LFGNFT1155 is ERC1155, IERC2981, Ownable {
     }
 
     function createCollection(bytes calldata _data) external {
+        require(
+            userWlContract.isWhiteListed(msg.sender),
+            "Only whitelisted user can create collection"
+        );
         require(_data.length > 0, "Invalid collection name");
         require(collections[_data].initiator == address(0), "Collection already created");
         collections[_data].initiator = msg.sender;
@@ -117,6 +130,7 @@ contract LFGNFT1155 is ERC1155, IERC2981, Ownable {
         uint256 _initialSupply,
         bytes calldata _data
     ) internal returns (uint256) {
+        require(userWlContract.isWhiteListed(msg.sender), "Only whitelisted user can create token");
         uint256 _id = _getNextTokenID();
         _incrementTokenTypeId();
         creators[_id] = msg.sender;

@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import "./interfaces/ILFGNFT.sol";
+import "./interfaces/IUserWhiteList.sol";
 
 contract LFGNFT is ILFGNFT, ERC721Enumerable, IERC2981, Ownable {
     using Strings for uint256;
@@ -19,6 +20,8 @@ contract LFGNFT is ILFGNFT, ERC721Enumerable, IERC2981, Ownable {
 
     // creators
     mapping(uint256 => address) public creators;
+
+    IUserWhiteList userWlContract;
 
     struct RoyaltyInfo {
         address receiver; // The payment receiver of royalty
@@ -51,9 +54,11 @@ contract LFGNFT is ILFGNFT, ERC721Enumerable, IERC2981, Ownable {
 
     bytes4 private constant _INTERFACE_ID_ERC2981 = 0x2a55205a;
 
-    constructor(address _owner) ERC721("LFGNFT", "LFGNFT") {
+    constructor(address _owner, IUserWhiteList _userWlContract) ERC721("LFGNFT", "LFGNFT") {
         require(_owner != address(0), "Invalid owner address");
         _transferOwnership(_owner);
+
+        userWlContract = _userWlContract;
 
         _registerInterface(_INTERFACE_ID_ERC2981);
 
@@ -93,6 +98,7 @@ contract LFGNFT is ILFGNFT, ERC721Enumerable, IERC2981, Ownable {
      ***** MINT FUNCTIONS *****
      *************************/
     function mint(address _to, uint256 _metaDataId) external override {
+        require(userWlContract.isWhiteListed(msg.sender), "Only whitelisted user can mint");
         require(totalSupply() + 1 <= maxSupply, "NFT: out of stock");
         require(_to != address(0), "NFT: invalid address");
 

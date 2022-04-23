@@ -1,10 +1,12 @@
-const { assert, expect } = require("chai");
+const {assert, expect} = require("chai");
 const hre = require("hardhat");
-const { web3 } = require("hardhat");
+const {web3} = require("hardhat");
 const LFGNFTArt = hre.artifacts.require("LFGNFT");
+const UserWhiteListArt = hre.artifacts.require("UserWhiteList");
 
 describe("LFGNFT", function () {
   let LFGNFT = null;
+  let UserWhiteList = null;
   let accounts = ["", "", ""],
     owner,
     minter;
@@ -12,13 +14,15 @@ describe("LFGNFT", function () {
   before("Deploy contract", async function () {
     try {
       [accounts[0], accounts[1], accounts[2], owner, minter] = await web3.eth.getAccounts();
-      LFGNFT = await LFGNFTArt.new(owner);
+      UserWhiteList = await UserWhiteListArt.new(owner);
+      LFGNFT = await LFGNFTArt.new(owner, UserWhiteList.address);
     } catch (err) {
       console.log(err);
     }
   });
 
   it("test NFT Royalties", async function () {
+    await UserWhiteList.setUserWhitelist([accounts[1]], [true], {from: owner});
     let tx = await LFGNFT.mint(accounts[1], 1, { from: accounts[1] });
     console.log("tx: ", JSON.stringify(tx));
     const nftBalance = await LFGNFT.balanceOf(accounts[1]);
