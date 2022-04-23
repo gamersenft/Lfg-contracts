@@ -25,7 +25,7 @@ contract UserWhiteList is Ownable, IUserWhiteList {
     }
 
     modifier onlyOperatorOrOwner() {
-        require(operators[msg.sender] || msg.sender == owner(), "NFT: Invalid operator");
+        require(operators[msg.sender] || msg.sender == owner(), "Invalid operator or owner");
         _;
     }
 
