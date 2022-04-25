@@ -12,10 +12,10 @@ require("hardhat-typechain");
 require("hardhat-contract-sizer");
 
 if (!process.env.MUMBAI_PRIVKEY) throw new Error("MUMBAI_PRIVKEY missing from .env file");
-if (!process.env.MAINNET_PRIVKEY) throw new Error("MAINNET_PRIVKEY missing from .env file");
-
+// if (!process.env.MAINNET_PRIVKEY) throw new Error("MAINNET_PRIVKEY missing from .env file");
+// https://speedy-nodes-nyc.moralis.io/9aea8902fa1b30e71253fd52/bsc/testnet
 module.exports = {
-  defaultNetwork: "hardhat",
+  defaultNetwork: "bsctest",
   networks: {
     localhost: {
       url: `http://127.0.0.1:8545`,
@@ -41,19 +41,19 @@ module.exports = {
     bsctest: {
       accounts: [process.env.MUMBAI_PRIVKEY || ""],
       chainId: 97,
-      url: "https://data-seed-prebsc-1-s1.binance.org:8545",
+      url: "https://nd-679-292-824.p2pify.com/4bad893eb8b4cecfecd1e76450ac94fc",
       timeout: 99999,
       gasPrice: 20e9,
       gas: 35e5,
     },
-    bsc: {
-      accounts: [process.env.MAINNET_PRIVKEY || ""],
-      chainId: 56,
-      url: "https://bsc-dataseed1.ninicoin.io/",
-      timeout: 999999,
-      gasPrice: 20e9,
-      gas: 35e5,
-    },
+    // bsc: {
+    //   accounts: [process.env.MAINNET_PRIVKEY || ""],
+    //   chainId: 56,
+    //   url: "https://bsc-dataseed1.ninicoin.io/",
+    //   timeout: 999999,
+    //   gasPrice: 20e9,
+    //   gas: 35e5,
+    // },
   },
   etherscan: {
     apiKey: process.env.BSCSCAN_API,

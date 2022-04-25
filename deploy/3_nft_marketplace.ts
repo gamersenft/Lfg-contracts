@@ -66,7 +66,8 @@ async function deploy() {
 
   const samContractGas: Contract = await SAMContractGas.deploy(
     process.env.MULTISIG_PUBKEY, // owner address
-    '0x401E332567c2848Fb7E77b4f5536F587a8A642f2' // White List contract
+    '0x401E332567c2848Fb7E77b4f5536F587a8A642f2', // White List contract
+    process.env.MULTISIG_PUBKEY
   );
 
   await samContractGas.deployed();
