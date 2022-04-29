@@ -80,6 +80,8 @@ abstract contract SAMLazyMintBase is Ownable, ReentrancyGuard {
 
     mapping(address => bytes32[]) public addrBiddingIds; // The mapping of the bidding of address
 
+    mapping(address => uint256) public addrTokens;
+
     uint256 public operationNonce;
 
     uint256 public constant MAXIMUM_FEE_RATE = 5000;

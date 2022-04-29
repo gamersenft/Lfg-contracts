@@ -19,8 +19,6 @@ contract SAMLazyMint is SAMLazyMintBase {
 
     IERC20 public lfgToken;
 
-    mapping(address => uint256) public addrTokens;
-
     constructor(
         address _owner,
         IERC20 _lfgToken,
