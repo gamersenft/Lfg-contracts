@@ -8,6 +8,7 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./interfaces/IBurnToken.sol";
 import "./interfaces/IERC2981.sol";
+import "./interfaces/ILFGLottery.sol";
 import "./SAMContractBase.sol";
 
 contract SAMContract is SAMContractBase {
@@ -20,13 +21,17 @@ contract SAMContract is SAMContractBase {
 
     IERC20 public lfgToken;
 
+    ILFGLottery public lfgLottery;
+
     constructor(
         address _owner,
         IERC20 _lfgToken,
+        ILFGLottery _lfgLottery,
         INftWhiteList _nftWhiteList,
         ISAMConfig _samConfig
     ) SAMContractBase(_owner, _nftWhiteList, _samConfig) {
         lfgToken = _lfgToken;
+        lfgLottery = _lfgLottery;
 
         feeRate = 125; // 1.25%
     }
@@ -73,6 +78,10 @@ contract SAMContract is SAMContractBase {
      */
     function buyNow(bytes32 listingId) external nonReentrant {
         uint256 price = getPrice(listingId);
+
+        // reward the lucky draw ticket
+        lfgLottery.rewardTicket(listingRegistry[listingId].seller, msg.sender);
+
         address hostContract = _buyNow(listingId, price);
 
         if (hostContract == samConfig.getFireNftAddress()) {
@@ -98,6 +107,9 @@ contract SAMContract is SAMContractBase {
         if (lst.hostContract == samConfig.getFireNftAddress()) {
             burnTokenContract.burn(bid.price);
         }
+
+        // reward the lucky draw ticket
+        lfgLottery.rewardTicket(lst.seller, msg.sender);
 
         _claimNft(biddingId, bid, lst);
     }
