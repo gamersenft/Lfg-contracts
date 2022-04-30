@@ -7,8 +7,9 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/LinkTokenInterface.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
+import "./interfaces/ILFGLottery.sol";
 
-contract LFGLottery is Ownable, VRFConsumerBaseV2 {
+contract LFGLottery is Ownable, ILFGLottery, VRFConsumerBaseV2 {
     using SafeERC20 for IERC20;
 
     event SetTicketPrice(address indexed sender, uint256 price);
@@ -127,11 +128,14 @@ contract LFGLottery is Ownable, VRFConsumerBaseV2 {
         uint256 rewardsInThisRound = 0;
         for (uint32 i = 0; i < WINNER_COUNT; ++i) {
             uint256 winerIndex = s_randomWords[i] % players.length;
-            uint256 rewards = rewardsPoolAmount * WINNER_REWARD_RATE[i] / 100;
+            uint256 rewards = (rewardsPoolAmount * WINNER_REWARD_RATE[i]) / 100;
             rewardsInThisRound + rewards;
+            // Transfer from the msg.sender to winner address, the msg.sender for ERC20 
+            // contract "lfgToken", is the Lottery contract.
             lfgToken.safeTransfer(players[winerIndex], rewards);
             _removePlayer(winerIndex);
         }
+
         // Because the rounding error, the rewardsPoolAmount maybe different from rewardsInThisRound,
         // the left over amount will left for the next round.
         rewardsPoolAmount -= rewardsInThisRound;
@@ -183,7 +187,7 @@ contract LFGLottery is Ownable, VRFConsumerBaseV2 {
         emit SetOperator(_account, _isOperator);
     }
 
-    function rewardTicket(address seller, address buyer) external onlyOperator {
+    function rewardTicket(address seller, address buyer) external override onlyOperator {
         lfgToken.safeTransferFrom(rewardHolder, address(this), rewardAmount * 2);
         players.push(seller);
         players.push(buyer);
