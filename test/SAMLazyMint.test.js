@@ -7,6 +7,7 @@ const LFGNFTArt = hre.artifacts.require("LFGNFT");
 const LFGNFT1155Art = hre.artifacts.require("LFGNFT1155");
 const SAMConfigArt = hre.artifacts.require("SAMConfig");
 const SAMLazyMintArt = hre.artifacts.require("SAMLazyMint");
+const BurnTokenArt = hre.artifacts.require("BurnToken");
 
 describe("SAMLazyMint", function () {
   let LFGToken = null;
