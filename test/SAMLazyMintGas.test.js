@@ -45,38 +45,18 @@ describe("SAMLazyMintGas", function () {
 
       SAMLazyMintGas = await SAMLazyMintGasArt.new(owner, LFGNFT1155.address, SAMConfig.address);
 
-       // 2.5% fee, 50% of the fee burn, 10% royalties fee.
+      // 2.5% fee, 50% of the fee burn, 10% royalties fee.
       await SAMLazyMintGas.updateFeeRate(250, {from: owner});
       await SAMConfig.setRoyaltiesFeeRate(1000, {from: owner});
-
     } catch (err) {
       console.log(err);
     }
   });
 
   it("test buy now feature", async function () {
-    let acc1Balance = await web3.eth.getBalance(accounts[2]);
-    console.log("Initial balance of account 1 ", acc1Balance.toString());
-
-    const emptyCollection = [];
-    let result = await LFGNFT1155.create(accounts[2], 2, emptyCollection, {
-      from: accounts[2],
-    });
-    result = await LFGNFT1155.create(accounts[2], 2, emptyCollection, {
-      from: accounts[2],
-    });
-    let id = result["logs"][0]["args"]["id"];
-    console.log("id: ", id.toString());
-
-    let nftBalanceOfAccount2 = await LFGNFT1155.balanceOf(accounts[2], id);
-    console.log("NFT Balance of account 2 ", nftBalanceOfAccount2.toString());
-
-    let supply = await LFGNFT1155.tokenSupply(id);
-    console.log("supply ", supply.toString());
-
-    await LFGNFT1155.setApprovalForAll(SAMLazyMintGas.address, true, {
-      from: accounts[2],
-    });
+    let firstCreateor = await LFGNFT1155.creators(1);
+    console.log("firstCreateor ", firstCreateor.toString());
+    assert.equal(firstCreateor, "0x0000000000000000000000000000000000000000");
 
     const collectionTag = web3.utils.asciiToHex("CryoptKitty");
     await LFGNFT1155.createCollection(collectionTag, {
@@ -90,7 +70,7 @@ describe("SAMLazyMintGas", function () {
       collectionTag,
       10, // Collection count 10
       0,
-      "20000000",
+      "2000000000000000000",
       latestBlock["timestamp"] + 1,
       3600 * 24,
       0,
@@ -109,10 +89,26 @@ describe("SAMLazyMintGas", function () {
 
     await expect(SAMLazyMintGas.buyNow(listingId, {from: accounts[2]})).to.be.revertedWith("Buyer cannot be seller");
 
-    await SAMLazyMintGas.buyNow(listingId, {from: accounts[1]});
+    await SAMLazyMintGas.buyNow(listingId, {from: accounts[1], value: hre.ethers.utils.parseEther("2.05")});
 
+    firstCreateor = await LFGNFT1155.creators(1);
+    console.log("firstCreateor ", firstCreateor.toString());
+    assert.equal(firstCreateor, SAMLazyMintGas.address);
 
+    let tokenSupply = await LFGNFT1155.tokenSupply(1);
+    assert.equal(tokenSupply.toString(), "1");
 
+    let buyerBalance = await LFGNFT1155.balanceOf(accounts[1], 1);
+    assert.equal(buyerBalance.toString(), "1");
+
+    let balanceOfAccount2 = await web3.eth.getBalance(accounts[2]);
+    console.log("Balance of account 2 ", balanceOfAccount2.toString());
+
+    listingResult = await SAMLazyMintGas.listingOfAddr(accounts[2]);
+    assert.equal(listingResult.length, 9);
+
+    balanceOfAccount2 = await web3.eth.getBalance(accounts[2]);
+    console.log("Balance of account 2 ", balanceOfAccount2.toString());
+    assert.isAbove(parseInt(balanceOfAccount2.toString()), 10001992111885711000000);
   });
-
 });
