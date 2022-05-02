@@ -37,8 +37,6 @@ describe("SAMLazyMintGas", function () {
         burnAddress1,
       ] = await web3.eth.getAccounts();
 
-      LFGToken = await LFGTokenArt.new("LFG Token", "LFG", "1000000000000000000000000000", owner);
-
       UserBlackList = await UserBlackListArt.new(owner);
 
       LFGNFT1155 = await LFGNFT1155Art.new(owner, UserBlackList.address, "");
@@ -51,17 +49,34 @@ describe("SAMLazyMintGas", function () {
       await SAMLazyMintGas.updateFeeRate(250, {from: owner});
       await SAMConfig.setRoyaltiesFeeRate(1000, {from: owner});
 
-      BurnToken = await BurnTokenArt.new(owner, LFGToken.address, burnAddress1);
-      await BurnToken.setOperator(SAMLazyMintGas.address, true, {from: owner});
     } catch (err) {
       console.log(err);
     }
   });
 
   it("test buy now feature", async function () {
-    let firstCreateor = await LFGNFT1155.creators(1);
-    console.log("firstCreateor ", firstCreateor.toString());
-    assert.equal(firstCreateor, "0x0000000000000000000000000000000000000000");
+    let acc1Balance = await web3.eth.getBalance(accounts[2]);
+    console.log("Initial balance of account 1 ", acc1Balance.toString());
+
+    const emptyCollection = [];
+    let result = await LFGNFT1155.create(accounts[2], 2, emptyCollection, {
+      from: accounts[2],
+    });
+    result = await LFGNFT1155.create(accounts[2], 2, emptyCollection, {
+      from: accounts[2],
+    });
+    let id = result["logs"][0]["args"]["id"];
+    console.log("id: ", id.toString());
+
+    let nftBalanceOfAccount2 = await LFGNFT1155.balanceOf(accounts[2], id);
+    console.log("NFT Balance of account 2 ", nftBalanceOfAccount2.toString());
+
+    let supply = await LFGNFT1155.tokenSupply(id);
+    console.log("supply ", supply.toString());
+
+    await LFGNFT1155.setApprovalForAll(SAMLazyMintGas.address, true, {
+      from: accounts[2],
+    });
 
     const collectionTag = web3.utils.asciiToHex("CryoptKitty");
     await LFGNFT1155.createCollection(collectionTag, {
@@ -88,16 +103,6 @@ describe("SAMLazyMintGas", function () {
     assert.equal(listingResult.length, 10);
     let listingId = listingResult[0];
 
-    const testDepositAmount = "100000000000000000000000";
-    await LFGToken.transfer(accounts[1], testDepositAmount, {from: owner});
-
-    let balance = await LFGToken.balanceOf(accounts[1]);
-    console.log("account 1 balance ", balance.toString());
-
-    await LFGToken.approve(SAMLazyMintGas.address, testDepositAmount, {
-      from: accounts[1],
-    });
-
     await expect(SAMLazyMintGas.placeBid(listingId, "10000000", {from: accounts[1]})).to.be.revertedWith(
       "Can only bid for listing on auction"
     );
@@ -105,17 +110,6 @@ describe("SAMLazyMintGas", function () {
     await expect(SAMLazyMintGas.buyNow(listingId, {from: accounts[2]})).to.be.revertedWith("Buyer cannot be seller");
 
     await SAMLazyMintGas.buyNow(listingId, {from: accounts[1]});
-
-    firstCreateor = await LFGNFT1155.creators(1);
-    console.log("firstCreateor ", firstCreateor.toString());
-    assert.equal(firstCreateor, SAMLazyMintGas.address);
-
-    let tokenSupply = await LFGNFT1155.tokenSupply(1);
-    assert.equal(tokenSupply.toString(), "1");
-
-    let buyerBalance = await LFGNFT1155.balanceOf(accounts[1], 1);
-    assert.equal(buyerBalance.toString(), "1");
-
 
 
 
