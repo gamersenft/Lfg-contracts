@@ -288,81 +288,93 @@ describe("SAMLazyMint", function () {
     assert.equal(listingResult.length, 9);
   });
 
-  // it("test dutch auction ", async function () {
-  //   let account2TokenIds = await LFGNFT.tokensOfOwner(accounts[2]);
-  //   console.log("tokenIds of account2 ", JSON.stringify(account2TokenIds));
+  it("test dutch auction ", async function () {
+    const emptyCollection = [];
+    let result = await LFGNFT1155.create(accounts[2], 2, emptyCollection, {
+      from: accounts[2],
+    });
+    result = await LFGNFT1155.create(accounts[2], 2, emptyCollection, {
+      from: accounts[2],
+    });
+    let id = result["logs"][0]["args"]["id"];
+    console.log("id: ", id.toString());
 
-  //   await LFGNFT.approve(SAMLazyMint.address, account2TokenIds[0], {
-  //     from: accounts[2],
-  //   });
+    let nftBalanceOfAccount2 = await LFGNFT1155.balanceOf(accounts[2], id);
+    console.log("NFT Balance of account 2 ", nftBalanceOfAccount2.toString());
 
-  //   let latestBlock = await hre.ethers.provider.getBlock("latest");
-  //   await SAMLazyMint.addListing(
-  //     LFGNFT.address,
-  //     account2TokenIds[0],
-  //     2,
-  //     "10000000",
-  //     latestBlock["timestamp"] + 1,
-  //     3600 * 24,
-  //     3600,
-  //     100000,
-  //     { from: accounts[2] }
-  //   );
+    let supply = await LFGNFT1155.tokenSupply(id);
+    console.log("supply ", supply.toString());
 
-  //   let listingResult = await SAMLazyMint.listingOfAddr(accounts[2]);
-  //   console.log("getListingResult ", JSON.stringify(listingResult));
-  //   assert.equal(listingResult.length, 1);
-  //   let listingId = listingResult[0];
+    await LFGNFT1155.setApprovalForAll(SAMLazyMint.address, true, {
+      from: accounts[2],
+    });
 
-  //   await expect(
-  //     SAMLazyMint.removeListing(listingId, { from: accounts[2] })
-  //   ).to.be.revertedWith("The listing haven't expired");
+    const collectionTag = web3.utils.asciiToHex("CryoptKitty");
 
-  //   latestBlock = await hre.ethers.provider.getBlock("latest");
-  //   await hre.network.provider.send("evm_setNextBlockTimestamp", [
-  //     latestBlock["timestamp"] + 3600 * 12,
-  //   ]);
-  //   await hre.network.provider.send("evm_mine");
+    let latestBlock = await hre.ethers.provider.getBlock("latest");
 
-  //   let currentPrice = await SAMLazyMint.getPrice(listingId);
-  //   console.log("currentPrice ", currentPrice.toString());
+    await SAMLazyMint.addListing(
+      collectionTag,
+      2,
+      "10000000",
+      latestBlock["timestamp"] + 1,
+      3600 * 24,
+      3600,
+      100000,
+      { from: accounts[2] }
+    );
 
-  //   await SAMLazyMint.buyNow(listingId, { from: accounts[1] });
+    let listingResult = await SAMLazyMint.listingOfAddr(accounts[2]);
+    console.log("getListingResult ", JSON.stringify(listingResult));
+    assert.equal(listingResult.length, 10);
+    let listingId = listingResult[9];
 
-  //   let account1TokenIds = await LFGNFT.tokensOfOwner(accounts[1]);
-  //   console.log("tokenIds of account 1 ", JSON.stringify(account1TokenIds));
-  //   assert.equal(account1TokenIds[1], "4");
+    await expect(SAMLazyMint.removeListing(listingId, {from: accounts[2]})).to.be.revertedWith(
+      "The listing haven't expired"
+    );
 
-  //   let balanceOfAccount2 = await LFGToken.balanceOf(accounts[2]);
-  //   console.log("Balance of account 2 ", balanceOfAccount2.toString());
+    latestBlock = await hre.ethers.provider.getBlock("latest");
+    await hre.network.provider.send("evm_setNextBlockTimestamp", [
+      latestBlock["timestamp"] + 3600 * 12,
+    ]);
+    await hre.network.provider.send("evm_mine");
 
-  //   const account1Tokens = await SAMLazyMint.addrTokens(accounts[1]);
-  //   console.log("Escrow tokens of account 1 ", JSON.stringify(account1Tokens));
+    let currentPrice = await SAMLazyMint.getPrice(listingId);
+    console.log("currentPrice ", currentPrice.toString());
 
-  //   balanceOfAccount2 = await LFGToken.balanceOf(accounts[2]);
-  //   console.log("Balance of account 2 ", balanceOfAccount2.toString());
-  //   assert.equal(balanceOfAccount2.toString(), "43800000");
+    await SAMLazyMint.buyNow(listingId, {from: accounts[1]});
 
-  //   listingResult = await SAMLazyMint.listingOfAddr(accounts[2]);
-  //   assert.equal(listingResult.length, 0);
+    let nftBalanceOfAccount1 = await LFGNFT1155.balanceOf(accounts[1], 1);
+    console.log("NFT Balance of account 1 ", nftBalanceOfAccount1.toString());
+    assert.equal(nftBalanceOfAccount1, 1);
 
-  //   // The price is 8800000, charge 2.5% fee, and burn 50% of the fee, so burn 110000, revenue 110000
-  //   let burnAccBal = await LFGToken.balanceOf(burnAddress);
-  //   console.log("burnAccBal ", burnAccBal.toString());
-  //   assert.equal(burnAccBal.toString(), "547500");
+    const account1Tokens = await SAMLazyMint.addrTokens(accounts[1]);
+    console.log("Escrow tokens of account 1 ", JSON.stringify(account1Tokens));
 
-  //   let totalBurnAmount = await SAMLazyMint.totalBurnAmount();
-  //   console.log("totalBurnAmount ", burnAccBal.toString());
-  //   assert.equal(totalBurnAmount.toString(), "547500");
+    balanceOfAccount2 = await LFGToken.balanceOf(accounts[2]);
+    console.log("Balance of account 2 ", balanceOfAccount2.toString());
+    assert.equal(balanceOfAccount2.toString(), "43800000");
 
-  //   // Increased renuve 8800000 * 2.5% * 50% = 110000
-  //   let revenueAmount = await SAMLazyMint.revenueAmount();
-  //   assert.equal(revenueAmount.toString(), "547500");
+    listingResult = await SAMLazyMint.listingOfAddr(accounts[2]);
+    assert.equal(listingResult.length, 9);
 
-  //   let revenueBalance = await LFGToken.balanceOf(revenueAddress);
-  //   console.log("Revenue account balance ", revenueBalance.toString());
-  //   assert.equal(revenueBalance.toString(), "547500");
-  // });
+    // The price is 8800000, charge 2.5% fee, and burn 50% of the fee, so burn 110000, revenue 110000
+    let burnAccBal = await LFGToken.balanceOf(burnAddress);
+    console.log("burnAccBal ", burnAccBal.toString());
+    assert.equal(burnAccBal.toString(), "547500");
+
+    let totalBurnAmount = await SAMLazyMint.totalBurnAmount();
+    console.log("totalBurnAmount ", burnAccBal.toString());
+    assert.equal(totalBurnAmount.toString(), "547500");
+
+    // Increased renuve 8800000 * 2.5% * 50% = 110000
+    let revenueAmount = await SAMLazyMint.revenueAmount();
+    assert.equal(revenueAmount.toString(), "547500");
+
+    let revenueBalance = await LFGToken.balanceOf(revenueAddress);
+    console.log("Revenue account balance ", revenueBalance.toString());
+    assert.equal(revenueBalance.toString(), "547500");
+  });
 
   // it("test royalties payment after sell", async function () {
   //   let supply = await LFGNFT.totalSupply();
