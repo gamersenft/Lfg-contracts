@@ -15,11 +15,11 @@ async function deploy() {
   // await lfgToken.deployed();
   // console.log("LFGToken deployed to: ", lfgToken.address);
 
-  // // LFGNFT contract
-  // const LFGNFT: ContractFactory = await ethers.getContractFactory("LFGNFT");
-  // const lfgNft: Contract = await LFGNFT.deploy(process.env.MULTISIG_PUBKEY);
-  // await lfgNft.deployed();
-  // console.log("LFGNFT deployed to: ", lfgNft.address);
+  // LFGNFT contract
+  const LFGNFT: ContractFactory = await ethers.getContractFactory("LFGNFT");
+  const lfgNft: Contract = await LFGNFT.deploy(process.env.MULTISIG_PUBKEY);
+  await lfgNft.deployed();
+  console.log("LFGNFT deployed to: ", lfgNft.address);
 
   // // LFGNFT1155 contract
   // const LFGNFT1155: ContractFactory = await ethers.getContractFactory(
@@ -43,36 +43,46 @@ async function deploy() {
   // await nftWhiteList.deployed();
   // console.log("NftWhiteList deployed to: ", nftWhiteList.address);
 
-  // SAMContract uses token
-  const SAMContract: ContractFactory = await ethers.getContractFactory(
-    "SAMContract"
-  );
+//   const SAMConfigContract: ContractFactory = await ethers.getContractFactory(
+//     "SAMConfig"
+//   );
+//   const samConfigContract: Contract = await SAMConfigContract.deploy(
+//     process.env.MULTISIG_PUBKEY,
+//     process.env.MULTISIG_PUBKEY, // Revenue address
+//     "0xf197c5bC13383ef49511303065d39b33DC063f72" // burn address
+//   );
+//   await samConfigContract.deployed();
+//   console.log("SAMConfigContract deployed to: ", samConfigContract.address);
 
-  const samContract: Contract = await SAMContract.deploy(
-    process.env.MULTISIG_PUBKEY, // owner address
-    '0xb6c7670bCB763d803f5f40D94DC512d0DE70E0C5',
-    '0x401E332567c2848Fb7E77b4f5536F587a8A642f2', // Whitelist contract
-    process.env.MULTISIG_PUBKEY, // burn address
-    process.env.MULTISIG_PUBKEY // Revenue address
-  );
+//   // SAMContract uses token
+//   const SAMContract: ContractFactory = await ethers.getContractFactory(
+//     "SAMContract"
+//   );
 
-  await samContract.deployed();
-  console.log("SAMContract deployed to: ", samContract.address);
+//   const samContract: Contract = await SAMContract.deploy(
+//     process.env.MULTISIG_PUBKEY, // owner address
+//     '0xb6c7670bCB763d803f5f40D94DC512d0DE70E0C5',
+//     '0x401E332567c2848Fb7E77b4f5536F587a8A642f2', // Whitelist contract
+//     samConfigContract.address
+//   );
 
-  // SAMContract uses gas
-  const SAMContractGas: ContractFactory = await ethers.getContractFactory(
-    "SAMContractGas"
-  );
+//   await samContract.deployed();
+//   console.log("SAMContract deployed to: ", samContract.address);
 
-  const samContractGas: Contract = await SAMContractGas.deploy(
-    process.env.MULTISIG_PUBKEY, // owner address
-    '0x401E332567c2848Fb7E77b4f5536F587a8A642f2', // White List contract
-    process.env.MULTISIG_PUBKEY
-  );
+//   // SAMContract uses gas
+//   const SAMContractGas: ContractFactory = await ethers.getContractFactory(
+//     "SAMContractGas"
+//   );
 
-  await samContractGas.deployed();
-  console.log("SAMContractGas deployed to: ", samContractGas.address);
-}
+//   const samContractGas: Contract = await SAMContractGas.deploy(
+//     process.env.MULTISIG_PUBKEY, // owner address
+//     '0x401E332567c2848Fb7E77b4f5536F587a8A642f2', // White List contract
+//     samConfigContract.address
+//   );
+
+//   await samContractGas.deployed();
+//   console.log("SAMContractGas deployed to: ", samContractGas.address);
+ }
 
 async function main(): Promise<void> {
   await deploy();

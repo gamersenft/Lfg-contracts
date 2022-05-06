@@ -3,32 +3,24 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import "./interfaces/ILFGNFT.sol";
 
-contract LFGNFT is ILFGNFT, ERC721Enumerable, IERC2981, Ownable {
+contract LFGNFT is ILFGNFT, ERC721Enumerable, ERC721URIStorage, IERC2981, Ownable {
     using Strings for uint256;
-
-    // Base Token URI
-    string public baseURI;
-
     // MAX supply of collection
     uint256 public maxSupply;
-
-    // Max batch quantity limit
-    uint256 public constant MAX_BATCH_QUANTITY = 1000;
-
-    // Max quantity can mint each time
-    uint256 public maxBatchQuantity;
 
     // creators
     mapping(uint256 => address) public creators;
 
     struct RoyaltyInfo {
-        address receiver;   // The payment receiver of royalty
-        uint16 rate;        // The rate of the payment
+        address receiver; // The payment receiver of royalty
+        uint16 rate; // The rate of the payment
     }
 
     // royalties
@@ -37,13 +29,13 @@ contract LFGNFT is ILFGNFT, ERC721Enumerable, IERC2981, Ownable {
     // MAX royalty percent
     uint16 public constant MAX_ROYALTY = 2000;
 
-    event Minted(address indexed minter, uint256 qty, address indexed to);
+    event Minted(address indexed minter, address indexed to, string uri, uint256 tokenId);
+
+    event AdminMinted(uint256 qty, address indexed to);
 
     event SetRoyalty(uint256 tokenId, address receiver, uint256 rate);
 
     event SetMaxSupply(uint256 maxSupply);
-
-    event SetMaxBatchQuantity(uint256 maxBatchQuantity);
 
     /**
      * @dev Mapping of interface ids to whether or not it's supported.
@@ -52,14 +44,13 @@ contract LFGNFT is ILFGNFT, ERC721Enumerable, IERC2981, Ownable {
 
     bytes4 private constant _INTERFACE_ID_ERC2981 = 0x2a55205a;
 
-    constructor(address _owner) ERC721("LFGNFT", "LFGNFT") {
+    constructor(address _owner) ERC721("LFGNFT", "LFGNFT")  {
         require(_owner != address(0), "Invalid owner address");
         _transferOwnership(_owner);
 
         _registerInterface(_INTERFACE_ID_ERC2981);
 
         maxSupply = 10000;
-        maxBatchQuantity = 10;
     }
 
     /**
@@ -81,58 +72,44 @@ contract LFGNFT is ILFGNFT, ERC721Enumerable, IERC2981, Ownable {
     /**
      * @dev See {IERC165-supportsInterface}.
      */
-    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721Enumerable, IERC165) returns (bool) {
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        virtual
+        override(ERC721,ERC721Enumerable, IERC165)
+        returns (bool)
+    {
         return super.supportsInterface(interfaceId) || _supportedInterfaces[interfaceId];
     }
 
     /**************************
      ***** MINT FUNCTIONS *****
      *************************/
-    function mint(uint256 _qty, address _to) external override {
-        require(totalSupply() + _qty <= maxSupply, "NFT: out of stock");
+    function mint(address _to, string memory uri) external  {
+        require(totalSupply() + 1 <= maxSupply, "NFT: out of stock");
         require(_to != address(0), "NFT: invalid address");
-        require(_qty <= maxBatchQuantity, "NFT: cannot mint over max batch quantity");
 
-        for (uint256 i = 0; i < _qty; i++) {
-            // Using tokenId in the loop instead of totalSupply() + 1,
-            // because totalSupply() changed after _safeMint function call.
-            uint256 tokenId = totalSupply() + 1;
-            _safeMint(_to, tokenId);
-
-            if (msg.sender == tx.origin) {
-                creators[tokenId] = msg.sender;
-            } else {
-                creators[tokenId] = address(0);
-            }
+        // Using tokenId in the loop instead of totalSupply() + 1,
+        // because totalSupply() changed after _safeMint function call.
+        uint256 tokenId = totalSupply() + 1;
+        _safeMint(_to, tokenId);
+        _setTokenURI(tokenId, uri);
+        if (msg.sender == tx.origin) {
+            creators[tokenId] = msg.sender;
+        } else {
+            creators[tokenId] = address(0);
         }
 
-        emit Minted(msg.sender, _qty, _to);
+        emit Minted(msg.sender, _to, uri, tokenId);
     }
 
-    function adminMint(uint256 _qty, address _to) external onlyOwner {
-        require(_qty != 0, "NFT: minitum 1 nft");
-        require(_to != address(0), "NFT: invalid address");
-        require(totalSupply() + _qty <= maxSupply, "NFT: max supply reached");
-
-        for (uint256 i = 0; i < _qty; i++) {
-            _safeMint(_to, totalSupply() + 1);
-        }
-    }
-
-    /**************************
-     ***** VIEW FUNCTIONS *****
-     *************************/
-    function _baseURI() internal view virtual override returns (string memory) {
-        return baseURI;
-    }
-
-    function tokenURI(uint256 _id) public view virtual override returns (string memory) {
-        require(_exists(_id), "ERC721Metadata: URI query for nonexistent token");
-        string memory currentBaseURI = _baseURI();
-        return
-            bytes(currentBaseURI).length > 0
-                ? string(abi.encodePacked(currentBaseURI, _id.toString()))
-                : "";
+    function tokenURI(uint256 tokenId)
+        public
+        view
+        override(ERC721, ERC721URIStorage)
+        returns (string memory)
+    {
+        return super.tokenURI(tokenId);
     }
 
     function tokensOfOwner(address _owner) public view returns (uint256[] memory) {
@@ -148,9 +125,6 @@ contract LFGNFT is ILFGNFT, ERC721Enumerable, IERC2981, Ownable {
         return _exists(_id);
     }
 
-    function setBaseURI(string memory _newBaseURI) external onlyOwner {
-        baseURI = _newBaseURI;
-    }
 
     function clearStuckTokens(IERC20 erc20) external onlyOwner {
         uint256 balance = erc20.balanceOf(address(this));
@@ -159,18 +133,32 @@ contract LFGNFT is ILFGNFT, ERC721Enumerable, IERC2981, Ownable {
 
     function royaltyInfo(uint256 _tokenId, uint256 _salePrice)
         external
-        override
         view
+        override
         returns (address receiver, uint256 royaltyAmount)
     {
         receiver = royalties[_tokenId].receiver;
         if (royalties[_tokenId].rate > 0 && royalties[_tokenId].receiver != address(0)) {
-            royaltyAmount = _salePrice * royalties[_tokenId].rate / 10000;
+            royaltyAmount = (_salePrice * royalties[_tokenId].rate) / 10000;
         }
     }
+    function _beforeTokenTransfer(address from, address to, uint256 tokenId)
+        internal
+        override(ERC721, ERC721Enumerable)
+    {
+        super._beforeTokenTransfer(from, to, tokenId);
+    }
+    function _burn(uint256 tokenId) internal override(ERC721, ERC721URIStorage) {
+        super._burn(tokenId);
+    }
 
-    function setRoyalty(uint256 _tokenId, address _receiver, uint16 _royalty) external {
+    function setRoyalty(
+        uint256 _tokenId,
+        address _receiver,
+        uint16 _royalty
+    ) external {
         require(creators[_tokenId] == msg.sender, "NFT: Invalid creator");
+        require(creators[_tokenId] == ownerOf(_tokenId), "NFT: Cannot set royalty after transfer");
         require(_receiver != address(0), "NFT: invalid royalty receiver");
         require(_royalty <= MAX_ROYALTY, "NFT: Invalid royalty percentage");
 
@@ -185,12 +173,5 @@ contract LFGNFT is ILFGNFT, ERC721Enumerable, IERC2981, Ownable {
         maxSupply = _maxSupply;
 
         emit SetMaxSupply(_maxSupply);
-    }
-
-    function setMaxBatchQuantity(uint256 _batchQuantity) external onlyOwner {
-        require(_batchQuantity >= 1 && _batchQuantity <= MAX_BATCH_QUANTITY, "Max batch quantity should between 1 to 1000");
-        maxBatchQuantity = _batchQuantity;
-
-        emit SetMaxBatchQuantity(_batchQuantity);
     }
 }

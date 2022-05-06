@@ -2,8 +2,6 @@ const { assert, expect } = require("chai");
 const hre = require("hardhat");
 const { web3 } = require("hardhat");
 const LFGNFTArt = hre.artifacts.require("LFGNFT");
-const BN = require("bn.js");
-const { createImportSpecifier } = require("typescript");
 
 describe("LFGNFT", function () {
   let LFGNFT = null;
@@ -21,7 +19,7 @@ describe("LFGNFT", function () {
   });
 
   it("test NFT Royalties", async function () {
-    await LFGNFT.mint(1, accounts[1], { from: minter });
+    await LFGNFT.mint(accounts[1], 1, { from: accounts[1] });
     const nftBalance = await LFGNFT.balanceOf(accounts[1]);
     console.log("nftBalance ", nftBalance.toString());
 
@@ -36,12 +34,12 @@ describe("LFGNFT", function () {
 
     // set 10% royalty
     await LFGNFT.setRoyalty(account1TokenIds[0], accounts[1], 1000, {
-      from: minter,
+      from: accounts[1],
     });
 
     await expect(
       LFGNFT.setRoyalty(account1TokenIds[0], accounts[1], 2100, {
-        from: minter,
+        from: accounts[1],
       })
     ).to.be.revertedWith("NFT: Invalid royalty percentage");
 
@@ -50,18 +48,5 @@ describe("LFGNFT", function () {
 
     assert.equal(royaltyInfo["receiver"], accounts[1]);
     assert.equal(royaltyInfo["royaltyAmount"], "1000");
-  });
-
-  it("test NFT Royalties", async function () {
-    await expect(
-      LFGNFT.mint(11, accounts[1], { from: minter })
-    ).to.be.revertedWith("NFT: cannot mint over max batch quantity");
-
-    await LFGNFT.setMaxBatchQuantity(20, { from: owner });
-
-    let getMaxBatchQuantity = await LFGNFT.maxBatchQuantity();
-    assert.equal(getMaxBatchQuantity.toString(), "20");
-
-    await LFGNFT.mint(11, accounts[1], { from: minter });
   });
 });

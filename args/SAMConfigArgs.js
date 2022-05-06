@@ -1,0 +1,6 @@
+module.exports = [
+    "0x930f91f777cb09Fe38f23DA3EB941e68f5819A33", // MULTISIG_PUBKEY
+    "0x930f91f777cb09Fe38f23DA3EB941e68f5819A33", // LFG Token
+    "0xf197c5bC13383ef49511303065d39b33DC063f72", // White list contract
+  ];
+  
