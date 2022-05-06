@@ -30,57 +30,6 @@ contract SAMLazyMint is SAMLazyMintBase {
     }
 
     /*
-     * @notice Add NFT to marketplace, Support auction(Price increasing), buyNow (Fixed price) and dutch auction (Price decreasing).
-     * @dev Only the token owner can call, because need to transfer the ownership to marketplace contract.
-     */
-    function addListing(
-        bytes calldata _collectionTag,
-        SellMode _sellMode,
-        uint256 _price,
-        uint256 _startTime,
-        uint256 _duration,
-        uint256 _discountInterval,
-        uint256 _discountAmount
-    ) external nonReentrant {
-        _addListing(
-            _collectionTag,
-            _sellMode,
-            _price,
-            _startTime,
-            _duration,
-            _discountInterval,
-            _discountAmount
-        );
-    }
-
-    /*
-     * @notice Add NFT to marketplace, Support auction(Price increasing), buyNow (Fixed price) and dutch auction (Price decreasing).
-     * @dev Only the token owner can call, because need to transfer the ownership to marketplace contract.
-     */
-    function addCollectionListing(
-        bytes calldata _collectionTag,
-        uint256 _collectionCount,
-        SellMode _sellMode,
-        uint256 _price,
-        uint256 _startTime,
-        uint256 _duration,
-        uint256 _discountInterval,
-        uint256 _discountAmount
-    ) external nonReentrant {
-        for (uint256 i = 0; i < _collectionCount; ++i) {
-            _addListing(
-                _collectionTag,
-                _sellMode,
-                _price,
-                _startTime,
-                _duration,
-                _discountInterval,
-                _discountAmount
-            );
-        }
-    }
-
-    /*
      * @notice Immediately buy the NFT.
      * @dev If it is dutch auction, then the price is dutch auction price, if normal auction, then the price is buyNowPrice.
      */
