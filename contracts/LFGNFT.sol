@@ -54,7 +54,9 @@ contract LFGNFT is ILFGNFT, ERC721Enumerable, ERC721URIStorage, IERC2981, Ownabl
     constructor(address _owner, IUserBlackList _userBlackListContract) ERC721("LFGNFT", "LFGNFT") {
         require(_owner != address(0), "Invalid owner address");
         _transferOwnership(_owner);
+
         userBlackListContract = _userBlackListContract;
+
         _registerInterface(_INTERFACE_ID_ERC2981);
 
         maxSupply = 10000;
