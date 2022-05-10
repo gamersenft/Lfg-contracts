@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import "./interfaces/ILFGNFT.sol";
-
+import "./interfaces/IUserBlackList.sol";
 contract LFGNFT is ILFGNFT, ERC721Enumerable, ERC721URIStorage, IERC2981, Ownable {
     using Strings for uint256;
     // MAX supply of collection
@@ -22,7 +22,7 @@ contract LFGNFT is ILFGNFT, ERC721Enumerable, ERC721URIStorage, IERC2981, Ownabl
         address receiver; // The payment receiver of royalty
         uint16 rate; // The rate of the payment
     }
-
+    IUserBlackList userBlackListContract;
     // royalties
     mapping(uint256 => RoyaltyInfo) private royalties;
 
@@ -44,10 +44,10 @@ contract LFGNFT is ILFGNFT, ERC721Enumerable, ERC721URIStorage, IERC2981, Ownabl
 
     bytes4 private constant _INTERFACE_ID_ERC2981 = 0x2a55205a;
 
-    constructor(address _owner) ERC721("LFGNFT", "LFGNFT")  {
+    constructor(address _owner, IUserBlackList _userBlackListContract) ERC721("LFGNFT", "LFGNFT")  {
         require(_owner != address(0), "Invalid owner address");
         _transferOwnership(_owner);
-
+        userBlackListContract = _userBlackListContract;
         _registerInterface(_INTERFACE_ID_ERC2981);
 
         maxSupply = 10000;
@@ -146,6 +146,8 @@ contract LFGNFT is ILFGNFT, ERC721Enumerable, ERC721URIStorage, IERC2981, Ownabl
         internal
         override(ERC721, ERC721Enumerable)
     {
+        require(!userBlackListContract.isBlackListed(from), "from address is blacklisted");
+        require(!userBlackListContract.isBlackListed(to), "to address is blacklisted");
         super._beforeTokenTransfer(from, to, tokenId);
     }
     function _burn(uint256 tokenId) internal override(ERC721, ERC721URIStorage) {
