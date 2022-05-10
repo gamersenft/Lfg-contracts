@@ -10,8 +10,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import "./interfaces/ILFGNFT.sol";
 import "./interfaces/IUserBlackList.sol";
+
 contract LFGNFT is ILFGNFT, ERC721Enumerable, ERC721URIStorage, IERC2981, Ownable {
-    using Strings for uint256;
     // MAX supply of collection
     uint256 public maxSupply;
 
@@ -22,7 +22,10 @@ contract LFGNFT is ILFGNFT, ERC721Enumerable, ERC721URIStorage, IERC2981, Ownabl
         address receiver; // The payment receiver of royalty
         uint16 rate; // The rate of the payment
     }
+
+    // User Blocklist contract
     IUserBlackList userBlackListContract;
+
     // royalties
     mapping(uint256 => RoyaltyInfo) private royalties;
 
@@ -31,7 +34,7 @@ contract LFGNFT is ILFGNFT, ERC721Enumerable, ERC721URIStorage, IERC2981, Ownabl
 
     event Minted(address indexed minter, address indexed to, string uri, uint256 tokenId);
 
-    event AdminMinted(uint256 qty, address indexed to);
+    event AdminMinted(address indexed minter, address indexed to, uint256[] tokenIds, string[] URIs);
 
     event SetRoyalty(uint256 tokenId, address receiver, uint256 rate);
 
@@ -104,6 +107,21 @@ contract LFGNFT is ILFGNFT, ERC721Enumerable, ERC721URIStorage, IERC2981, Ownabl
         emit Minted(msg.sender, _to, uri, tokenId);
     }
 
+    function adminMint(string[] calldata URIs, address _to) external onlyOwner {
+        require(URIs.length > 0, "NFT: minitum 1 nft");
+        require(_to != address(0), "NFT: invalid address");
+        require(totalSupply() + URIs.length <= maxSupply, "NFT: max supply reached");
+        uint256[] memory tokenIds = new uint256[](URIs.length);
+        for (uint256 i = 0; i < URIs.length; i++) {
+            uint256 tokenId = totalSupply() + 1;
+            _safeMint(_to, tokenId);
+            _setTokenURI(tokenId, URIs[i]);
+            tokenIds[i] = tokenId;
+        }
+
+        emit AdminMinted(msg.sender, _to, tokenIds, URIs);
+    }
+
     function tokenURI(uint256 tokenId)
         public
         view
@@ -126,7 +144,6 @@ contract LFGNFT is ILFGNFT, ERC721Enumerable, ERC721URIStorage, IERC2981, Ownabl
         return _exists(_id);
     }
 
-
     function clearStuckTokens(IERC20 erc20) external onlyOwner {
         uint256 balance = erc20.balanceOf(address(this));
         erc20.transfer(msg.sender, balance);
@@ -143,6 +160,7 @@ contract LFGNFT is ILFGNFT, ERC721Enumerable, ERC721URIStorage, IERC2981, Ownabl
             royaltyAmount = (_salePrice * royalties[_tokenId].rate) / 10000;
         }
     }
+
     function _beforeTokenTransfer(address from, address to, uint256 tokenId)
         internal
         override(ERC721, ERC721Enumerable)
@@ -151,6 +169,7 @@ contract LFGNFT is ILFGNFT, ERC721Enumerable, ERC721URIStorage, IERC2981, Ownabl
         require(!userBlackListContract.isBlackListed(to), "to address is blacklisted");
         super._beforeTokenTransfer(from, to, tokenId);
     }
+
     function _burn(uint256 tokenId) internal override(ERC721, ERC721URIStorage) {
         super._burn(tokenId);
     }
