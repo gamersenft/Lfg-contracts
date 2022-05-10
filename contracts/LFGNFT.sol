@@ -86,6 +86,7 @@ contract LFGNFT is ILFGNFT, ERC721Enumerable, ERC721URIStorage, IERC2981, Ownabl
      ***** MINT FUNCTIONS *****
      *************************/
     function mint(address _to, string memory uri) external  {
+        require(!userBlackListContract.isBlackListed(msg.sender), "User is blacklisted");
         require(totalSupply() + 1 <= maxSupply, "NFT: out of stock");
         require(_to != address(0), "NFT: invalid address");
 
