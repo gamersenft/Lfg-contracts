@@ -3,7 +3,6 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -34,7 +33,12 @@ contract LFGNFT is ILFGNFT, ERC721Enumerable, ERC721URIStorage, IERC2981, Ownabl
 
     event Minted(address indexed minter, address indexed to, string uri, uint256 tokenId);
 
-    event AdminMinted(address indexed minter, address indexed to, uint256[] tokenIds, string[] URIs);
+    event AdminMinted(
+        address indexed minter,
+        address indexed to,
+        uint256[] tokenIds,
+        string[] URIs
+    );
 
     event SetRoyalty(uint256 tokenId, address receiver, uint256 rate);
 
@@ -47,7 +51,7 @@ contract LFGNFT is ILFGNFT, ERC721Enumerable, ERC721URIStorage, IERC2981, Ownabl
 
     bytes4 private constant _INTERFACE_ID_ERC2981 = 0x2a55205a;
 
-    constructor(address _owner, IUserBlackList _userBlackListContract) ERC721("LFGNFT", "LFGNFT")  {
+    constructor(address _owner, IUserBlackList _userBlackListContract) ERC721("LFGNFT", "LFGNFT") {
         require(_owner != address(0), "Invalid owner address");
         _transferOwnership(_owner);
         userBlackListContract = _userBlackListContract;
@@ -79,7 +83,7 @@ contract LFGNFT is ILFGNFT, ERC721Enumerable, ERC721URIStorage, IERC2981, Ownabl
         public
         view
         virtual
-        override(ERC721,ERC721Enumerable, IERC165)
+        override(ERC721, ERC721Enumerable, IERC165)
         returns (bool)
     {
         return super.supportsInterface(interfaceId) || _supportedInterfaces[interfaceId];
@@ -88,7 +92,7 @@ contract LFGNFT is ILFGNFT, ERC721Enumerable, ERC721URIStorage, IERC2981, Ownabl
     /**************************
      ***** MINT FUNCTIONS *****
      *************************/
-    function mint(address _to, string memory uri) external  {
+    function mint(address _to, string memory uri) external override {
         require(!userBlackListContract.isBlackListed(msg.sender), "User is blacklisted");
         require(totalSupply() + 1 <= maxSupply, "NFT: out of stock");
         require(_to != address(0), "NFT: invalid address");
@@ -161,19 +165,6 @@ contract LFGNFT is ILFGNFT, ERC721Enumerable, ERC721URIStorage, IERC2981, Ownabl
         }
     }
 
-    function _beforeTokenTransfer(address from, address to, uint256 tokenId)
-        internal
-        override(ERC721, ERC721Enumerable)
-    {
-        require(!userBlackListContract.isBlackListed(from), "from address is blacklisted");
-        require(!userBlackListContract.isBlackListed(to), "to address is blacklisted");
-        super._beforeTokenTransfer(from, to, tokenId);
-    }
-
-    function _burn(uint256 tokenId) internal override(ERC721, ERC721URIStorage) {
-        super._burn(tokenId);
-    }
-
     function setRoyalty(
         uint256 _tokenId,
         address _receiver,
@@ -195,5 +186,19 @@ contract LFGNFT is ILFGNFT, ERC721Enumerable, ERC721URIStorage, IERC2981, Ownabl
         maxSupply = _maxSupply;
 
         emit SetMaxSupply(_maxSupply);
+    }
+
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 tokenId
+    ) internal override(ERC721, ERC721Enumerable) {
+        require(!userBlackListContract.isBlackListed(from), "from address is blacklisted");
+        require(!userBlackListContract.isBlackListed(to), "to address is blacklisted");
+        super._beforeTokenTransfer(from, to, tokenId);
+    }
+
+    function _burn(uint256 tokenId) internal override(ERC721, ERC721URIStorage) {
+        super._burn(tokenId);
     }
 }
