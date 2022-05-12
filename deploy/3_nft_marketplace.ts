@@ -17,33 +17,34 @@ async function deploy() {
   await nftWhiteList.deployed();
   console.log("NftWhiteList deployed to: ", nftWhiteList.address);
 
+  // SAM config contract
   const SAMConfigContract: ContractFactory = await ethers.getContractFactory(
     "SAMConfig"
   );
   const samConfigContract: Contract = await SAMConfigContract.deploy(
     process.env.MULTISIG_PUBKEY,
-    "0x08955A4e6b4A543FE68479F5482739Ff4D625A16", // Revenue address
-    "0xf197c5bC13383ef49511303065d39b33DC063f72" // burn address
+    "0x293d51C81bF5F40a1910c1cf8a886aF95FfC2dA0", // Revenue address
+    "0xAB8691073fEcD08CE138C6c46edb207c1d2B697d" // Burn address
   );
   await samConfigContract.deployed();
   console.log("SAMConfigContract deployed to: ", samConfigContract.address);
 
-  // SAMContract uses token
+  // SAMContract (NFT Social Aggregator Marketplace) uses LFG token
   const SAMContract: ContractFactory = await ethers.getContractFactory(
     "SAMContract"
   );
 
   const samContract: Contract = await SAMContract.deploy(
     process.env.MULTISIG_PUBKEY, // owner address
-    "0x53c54E27DEc0Fa40ac02B032c6766Ce8E04A2A70", // lfgToken.address
-    nftWhiteList.address, // Whitelist contract
+    "0xF93f6b686f4A6557151455189a9173735D668154", // lfgToken.address
+    nftWhiteList.address, // NFT Whitelist contract
     samConfigContract.address // SAMConfig address
   );
 
   await samContract.deployed();
   console.log("SAMContract deployed to: ", samContract.address);
 
-  // SAMContract uses gas
+  // SAMContract (NFT Social Aggregator Marketplace) uses gas
   const SAMContractGas: ContractFactory = await ethers.getContractFactory(
     "SAMContractGas"
   );
