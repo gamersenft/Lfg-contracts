@@ -7,8 +7,9 @@ if (!process.env.MULTISIG_PUBKEY)
   throw new Error("MULTISIG_PUBKEY missing from .env file");
 
 async function deploy() {
+  // Deploy the Fire NFT
   const LFGFireNFT: ContractFactory = await ethers.getContractFactory(
-    "LFGFireNFT"
+    "LFGFireNFT2"
   );
   const lfgFireNft: Contract = await LFGFireNFT.deploy(
     process.env.MULTISIG_PUBKEY
@@ -16,6 +17,7 @@ async function deploy() {
   await lfgFireNft.deployed();
   console.log("lfgFireNft deployed to: ", lfgFireNft.address);
 
+  // Deploy NFT airdrop contract
   const NftAirdrop: ContractFactory = await ethers.getContractFactory(
     "NftAirdrop"
   );
