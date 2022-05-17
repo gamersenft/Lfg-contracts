@@ -62,7 +62,7 @@ contract LFGLottery is Ownable, ILFGLottery, VRFConsumerBaseV2 {
 
     uint256 ticketPrice;
 
-    uint256 rewardAmount;
+    uint256 rewardAmount = 100e18;
 
     IERC20 public lfgToken;
 
@@ -97,7 +97,7 @@ contract LFGLottery is Ownable, ILFGLottery, VRFConsumerBaseV2 {
     }
 
     modifier onlyOperator() {
-        require(operators[msg.sender], "Invalid operator");
+        require(operators[msg.sender], "Invalid operator for LFGLottery");
         _;
     }
 

@@ -5,6 +5,7 @@ const LFGTokenArt = hre.artifacts.require("LFGToken");
 const UserBlackListArt = hre.artifacts.require("UserBlackList");
 const LFGNFT1155Art = hre.artifacts.require("LFGNFT1155");
 const NftWhiteListArt = hre.artifacts.require("NftWhiteList");
+const LFGLotteryArt = hre.artifacts.require("LFGLottery");
 const SAMConfigArt = hre.artifacts.require("SAMConfig");
 const SAMContractArt = hre.artifacts.require("SAMContract");
 const BurnTokenArt = hre.artifacts.require("BurnToken");
@@ -14,6 +15,7 @@ describe("SAMContract1155", function () {
   let UserBlackList = null;
   let LFGNFT1155 = null;
   let NftWhiteList = null;
+  let LFGLottery = null;
   let SAMConfig = null;
   let SAMContract = null;
   let BurnToken = null;
@@ -47,9 +49,25 @@ describe("SAMContract1155", function () {
 
       NftWhiteList = await NftWhiteListArt.new(owner);
 
+      LFGLottery = await LFGLotteryArt.new(
+        owner,
+        LFGToken.address,
+        owner,
+        1,
+        "0x0000000000000000000000000000000000000000",
+        "0x0000000000000000000000000000000000000000",
+        "0xd4bb89654db74673a187bd804519e65e3f71a52bc55f11da7601a13dcf505314"
+      );
+
       SAMConfig = await SAMConfigArt.new(owner, revenueAddress, burnAddress);
 
-      SAMContract = await SAMContractArt.new(owner, LFGToken.address, NftWhiteList.address, SAMConfig.address);
+      SAMContract = await SAMContractArt.new(
+        owner,
+        LFGToken.address,
+        LFGLottery.address,
+        NftWhiteList.address,
+        SAMConfig.address
+      );
 
       // This one must call from owner
       await NftWhiteList.setNftContractWhitelist(LFGNFT1155.address, true, {
@@ -62,6 +80,12 @@ describe("SAMContract1155", function () {
 
       BurnToken = await BurnTokenArt.new(owner, LFGToken.address, burnAddress1);
       await BurnToken.setOperator(SAMContract.address, true, {from: owner});
+
+      await LFGLottery.setOperator(SAMContract.address, true, {from: owner});
+
+      await LFGToken.approve(LFGLottery.address, "100000000000000000000000", {
+        from: owner,
+      });
     } catch (err) {
       console.log(err);
     }
@@ -106,7 +130,7 @@ describe("SAMContract1155", function () {
 
     let listingResult = await SAMContract.listingOfAddr(accounts[2]);
     console.log("getListingResult ", JSON.stringify(listingResult));
-    assert.equal(listingResult.length, 1); 
+    assert.equal(listingResult.length, 1);
 
     let balanceOfMarketplace = await LFGNFT1155.balanceOf(SAMContract.address, id);
     console.log("balance of of market place ", JSON.stringify(balanceOfMarketplace));
@@ -213,7 +237,7 @@ describe("SAMContract1155", function () {
     result = await LFGNFT1155.create(accounts[2], 2, emptyCollection, {
       from: accounts[2],
     });
-    
+
     let id = result["logs"][0]["args"]["id"];
     let nftBalanceOfAccount2 = await LFGNFT1155.balanceOf(accounts[2], id);
     console.log("NFT Balance of account 2 ", nftBalanceOfAccount2.toString());
@@ -239,7 +263,7 @@ describe("SAMContract1155", function () {
 
     let listingResult = await SAMContract.listingOfAddr(accounts[2]);
     console.log("getListingResult ", JSON.stringify(listingResult));
-    assert.equal(listingResult.length, 2); 
+    assert.equal(listingResult.length, 2);
 
     const testDepositAmount = "100000000000000000000000";
     await LFGToken.transfer(accounts[1], testDepositAmount, {from: owner});
@@ -275,6 +299,5 @@ describe("SAMContract1155", function () {
     console.log("Burn amount ", burnAmount.toString());
 
     assert.equal(burnAmount.toString(), "750000");
-
   });
 });

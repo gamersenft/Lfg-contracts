@@ -7,6 +7,7 @@ const LFGFireNFTArt = hre.artifacts.require("LFGFireNFT");
 const UserBlackListArt = hre.artifacts.require("UserBlackList");
 const LFGNFTArt = hre.artifacts.require("LFGNFT");
 const NftWhiteListArt = hre.artifacts.require("NftWhiteList");
+const LFGLotteryArt = hre.artifacts.require("LFGLottery");
 const SAMConfigArt = hre.artifacts.require("SAMConfig");
 const SAMContractArt = hre.artifacts.require("SAMContract");
 const BurnTokenArt = hre.artifacts.require("BurnToken");
@@ -17,6 +18,7 @@ describe("SAMContract", function () {
   let LFGNFT = null;
   let LFGFireNFT = null;
   let NftWhiteList = null;
+  let LFGLottery = null;
   let SAMConfig = null;
   let SAMContract = null;
   let BurnToken = null;
@@ -51,9 +53,25 @@ describe("SAMContract", function () {
 
       NftWhiteList = await NftWhiteListArt.new(owner);
 
+      LFGLottery = await LFGLotteryArt.new(
+        owner,
+        LFGToken.address,
+        owner,
+        1,
+        "0x0000000000000000000000000000000000000000",
+        "0x0000000000000000000000000000000000000000",
+        "0xd4bb89654db74673a187bd804519e65e3f71a52bc55f11da7601a13dcf505314"
+      );
+
       SAMConfig = await SAMConfigArt.new(owner, revenueAddress, burnAddress);
 
-      SAMContract = await SAMContractArt.new(owner, LFGToken.address, NftWhiteList.address, SAMConfig.address);
+      SAMContract = await SAMContractArt.new(
+        owner,
+        LFGToken.address,
+        LFGLottery.address,
+        NftWhiteList.address,
+        SAMConfig.address
+      );
 
       // make sure the default fee rate is discounted.
       const feeRateResult = await SAMContract.feeRate();
@@ -73,6 +91,12 @@ describe("SAMContract", function () {
 
       BurnToken = await BurnTokenArt.new(owner, LFGToken.address, burnAddress1);
       await BurnToken.setOperator(SAMContract.address, true, {from: owner});
+
+      await LFGLottery.setOperator(SAMContract.address, true, {from: owner});
+
+      await LFGToken.approve(LFGLottery.address, "100000000000000000000000", {
+        from: owner,
+      });
     } catch (err) {
       console.log(err);
     }
