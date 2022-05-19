@@ -7,9 +7,10 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/LinkTokenInterface.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
+import "@chainlink/contracts/src/v0.8/KeeperCompatible.sol";
 import "./interfaces/ILFGLottery.sol";
 
-contract LFGLottery is Ownable, ILFGLottery, VRFConsumerBaseV2 {
+contract LFGLottery is Ownable, ILFGLottery, VRFConsumerBaseV2, KeeperCompatibleInterface {
     using SafeERC20 for IERC20;
 
     event SetTicketPrice(address indexed sender, uint256 price);
@@ -18,25 +19,19 @@ contract LFGLottery is Ownable, ILFGLottery, VRFConsumerBaseV2 {
     event SetOperator(address indexed addr, bool isOperator);
     event RewardTicket(address indexed sender, address indexed seller, address indexed buyer);
     event SetMinimumPlayer(address indexed sender, uint256 minPlayer);
+    event SetInterval(address indexed sender, uint256 interval);
+    event SetCallBackGasLimit(address indexed sender, uint32 gasLimit);
+    event SendTokenReward(address indexed winner, uint256 amount);
 
-    VRFCoordinatorV2Interface COORDINATOR;
-    LinkTokenInterface LINKTOKEN;
+    VRFCoordinatorV2Interface public COORDINATOR;
 
     // Your subscription ID.
-    uint64 s_subscriptionId;
-
-    // Rinkeby coordinator. For other networks,
-    // see https://docs.chain.link/docs/vrf-contracts/#configurations
-    address vrfCoordinator;
-
-    // Rinkeby LINK token contract. For other networks,
-    // see https://docs.chain.link/docs/vrf-contracts/#configurations
-    address link;
+    uint64 public s_subscriptionId;
 
     // The gas lane to use, which specifies the maximum gas price to bump to.
     // For a list of available gas lanes on each network,
     // see https://docs.chain.link/docs/vrf-contracts/#configurations
-    bytes32 keyHash = 0xd4bb89654db74673a187bd804519e65e3f71a52bc55f11da7601a13dcf505314;
+    bytes32 public keyHash = 0xd4bb89654db74673a187bd804519e65e3f71a52bc55f11da7601a13dcf505314;
 
     // Depends on the number of requested values that you want sent to the
     // fulfillRandomWords() function. Storing each word costs about 20,000 gas,
@@ -44,10 +39,10 @@ contract LFGLottery is Ownable, ILFGLottery, VRFConsumerBaseV2 {
     // this limit based on the network that you select, the size of the request,
     // and the processing of the callback request in the fulfillRandomWords()
     // function.
-    uint32 callbackGasLimit = 100000;
+    uint32 public callbackGasLimit = 2500000;
 
     // The default is 3, but you can set this higher.
-    uint16 requestConfirmations = 3;
+    uint16 public requestConfirmations = 3;
 
     // For this example, retrieve 2 random values in one request.
     // Cannot exceed VRFCoordinatorV2.MAX_NUM_WORDS.
@@ -70,9 +65,20 @@ contract LFGLottery is Ownable, ILFGLottery, VRFConsumerBaseV2 {
 
     mapping(address => bool) public operators;
 
-    uint256 rewardsPoolAmount = 0;
+    uint256 public rewardsPoolAmount = 0;
 
-    uint256 minimumPlayer = 3;
+    uint256 public minimumPlayer = 3;
+
+    /**
+     * Public counter variable
+     */
+    uint256 public runCounter;
+
+    /**
+     * Use an interval in seconds and a timestamp to slow execution of Upkeep
+     */
+    uint256 public interval;
+    uint256 public lastTimeStamp;
 
     constructor(
         address _owner,
@@ -80,9 +86,8 @@ contract LFGLottery is Ownable, ILFGLottery, VRFConsumerBaseV2 {
         address _rewardHolder,
         uint64 _subscriptionId,
         address _vrfCoordinator,
-        address _link,
         bytes32 _keyHash
-    ) VRFConsumerBaseV2(vrfCoordinator) {
+    ) VRFConsumerBaseV2(_vrfCoordinator) {
         require(_owner != address(0), "Invalid owner address");
         _transferOwnership(_owner);
 
@@ -92,8 +97,12 @@ contract LFGLottery is Ownable, ILFGLottery, VRFConsumerBaseV2 {
 
         s_subscriptionId = _subscriptionId;
         COORDINATOR = VRFCoordinatorV2Interface(_vrfCoordinator);
-        LINKTOKEN = LinkTokenInterface(_link);
         keyHash = _keyHash;
+
+        interval = 7 days;
+        lastTimeStamp = block.timestamp;
+
+        runCounter = 0;
     }
 
     modifier onlyOperator() {
@@ -102,7 +111,7 @@ contract LFGLottery is Ownable, ILFGLottery, VRFConsumerBaseV2 {
     }
 
     // Assumes the subscription is funded sufficiently.
-    function requestRandomWords() external onlyOwner {
+    function requestRandomWords() internal {
         // Will revert if subscription is not set and funded.
         if (players.length < minimumPlayer) {
             return;
@@ -129,16 +138,22 @@ contract LFGLottery is Ownable, ILFGLottery, VRFConsumerBaseV2 {
         for (uint32 i = 0; i < WINNER_COUNT; ++i) {
             uint256 winerIndex = s_randomWords[i] % players.length;
             uint256 rewards = (rewardsPoolAmount * WINNER_REWARD_RATE[i]) / 100;
-            rewardsInThisRound + rewards;
-            // Transfer from the msg.sender to winner address, the msg.sender for ERC20 
+            rewardsInThisRound += rewards;
+
+            // Transfer from the msg.sender to winner address, the msg.sender for ERC20
             // contract "lfgToken", is the Lottery contract.
             lfgToken.safeTransfer(players[winerIndex], rewards);
+            emit SendTokenReward(players[winerIndex], rewards);
+
             _removePlayer(winerIndex);
         }
 
         // Because the rounding error, the rewardsPoolAmount maybe different from rewardsInThisRound,
         // the left over amount will left for the next round.
         rewardsPoolAmount -= rewardsInThisRound;
+
+        // clear all the players
+        delete players;
     }
 
     function _removePlayer(uint256 index) internal {
@@ -165,6 +180,16 @@ contract LFGLottery is Ownable, ILFGLottery, VRFConsumerBaseV2 {
     function setMinimumPlayer(uint256 minPlayer) external onlyOwner {
         minimumPlayer = minPlayer;
         emit SetMinimumPlayer(msg.sender, minPlayer);
+    }
+
+    function setInterval(uint256 updateInterval) external onlyOwner {
+        interval = updateInterval;
+        emit SetInterval(msg.sender, interval);
+    }
+
+    function setCallBackGasLimit(uint32 gasLimit) external onlyOwner {
+        callbackGasLimit = gasLimit;
+        emit SetCallBackGasLimit(msg.sender, gasLimit);
     }
 
     function buyTicket(uint256 count) external {
@@ -195,5 +220,39 @@ contract LFGLottery is Ownable, ILFGLottery, VRFConsumerBaseV2 {
         rewardsPoolAmount += rewardAmount * 2;
 
         emit RewardTicket(msg.sender, seller, buyer);
+    }
+
+    function getPlayerCount() public view returns (uint256) {
+        return players.length;
+    }
+
+    function checkUpkeep(
+        bytes calldata /* checkData */
+    )
+        external
+        view
+        override
+        returns (
+            bool upkeepNeeded,
+            bytes memory /* performData */
+        )
+    {
+        upkeepNeeded =
+            (block.timestamp - lastTimeStamp) > interval &&
+            players.length >= WINNER_COUNT;
+        // We don't use the checkData in this example. The checkData is defined when the Upkeep was registered.
+    }
+
+    function performUpkeep(
+        bytes calldata /* performData */
+    ) external override {
+        //We highly recommend revalidating the upkeep in the performUpkeep function
+        if ((block.timestamp - lastTimeStamp) > interval && players.length >= WINNER_COUNT) {
+            lastTimeStamp = block.timestamp;
+            runCounter = runCounter + 1;
+
+            requestRandomWords();
+        }
+        // We don't use the performData in this example. The performData is generated by the Keeper's call to your checkUpkeep function
     }
 }
