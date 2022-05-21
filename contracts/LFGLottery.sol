@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
-// An example of a consumer contract that relies on a subscription for funding.
+// A lottery contract use the chainlink VRF and keeper service.
+// Author: Xiao Shengguang
+
 pragma solidity ^0.8.7;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -14,13 +16,21 @@ contract LFGLottery is Ownable, ILFGLottery, VRFConsumerBaseV2, KeeperCompatible
     using SafeERC20 for IERC20;
 
     event SetTicketPrice(address indexed sender, uint256 price);
+
     event SetRewardAmount(address indexed sender, uint256 amount);
+
     event BuyTicket(address indexed sender, uint256 count);
+
     event SetOperator(address indexed addr, bool isOperator);
+
     event RewardTicket(address indexed sender, address indexed seller, address indexed buyer);
+
     event SetMinimumPlayer(address indexed sender, uint256 minPlayer);
+
     event SetInterval(address indexed sender, uint256 interval);
+
     event SetCallBackGasLimit(address indexed sender, uint32 gasLimit);
+
     event SendTokenReward(address indexed winner, uint256 amount);
 
     VRFCoordinatorV2Interface public COORDINATOR;
@@ -38,7 +48,7 @@ contract LFGLottery is Ownable, ILFGLottery, VRFConsumerBaseV2, KeeperCompatible
     // so 100,000 is a safe default for this example contract. Test and adjust
     // this limit based on the network that you select, the size of the request,
     // and the processing of the callback request in the fulfillRandomWords()
-    // function.
+    // function. 2500000 is the maximum value in VRF config.
     uint32 public callbackGasLimit = 2500000;
 
     // The default is 3, but you can set this higher.
@@ -55,9 +65,9 @@ contract LFGLottery is Ownable, ILFGLottery, VRFConsumerBaseV2, KeeperCompatible
 
     address[] public players;
 
-    uint256 ticketPrice;
+    uint256 public ticketPrice;
 
-    uint256 rewardAmount = 100e18;
+    uint256 public rewardAmount = 100e18;
 
     IERC20 public lfgToken;
 
@@ -70,7 +80,7 @@ contract LFGLottery is Ownable, ILFGLottery, VRFConsumerBaseV2, KeeperCompatible
     uint256 public minimumPlayer = 3;
 
     /**
-     * Public counter variable
+     * Public counter variable, record how many times the keeper executed
      */
     uint256 public runCounter;
 
@@ -78,6 +88,10 @@ contract LFGLottery is Ownable, ILFGLottery, VRFConsumerBaseV2, KeeperCompatible
      * Use an interval in seconds and a timestamp to slow execution of Upkeep
      */
     uint256 public interval;
+
+    /**
+     * The last time the keeper execute.
+     */
     uint256 public lastTimeStamp;
 
     constructor(
