@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./interfaces/ILFGFireNFT.sol";
 
-contract LFGFireNFT2 is ILFGFireNFT, ERC721Enumerable, Ownable {
+contract LFGFireNFT3 is ILFGFireNFT, ERC721Enumerable, Ownable {
     using Strings for uint256;
 
     // Base Token URI
@@ -24,7 +24,7 @@ contract LFGFireNFT2 is ILFGFireNFT, ERC721Enumerable, Ownable {
         _;
     }
 
-    constructor(address _owner) ERC721("LFGFireNFT2", "LFGFireNFT2") {
+    constructor(address _owner) ERC721("LFGFireNFT3", "LFGFireNFT3") {
         require(_owner != address(0), "Invalid owner address");
         _transferOwnership(_owner);
     }

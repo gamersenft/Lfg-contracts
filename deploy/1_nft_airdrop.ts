@@ -9,7 +9,7 @@ if (!process.env.MULTISIG_PUBKEY)
 async function deploy() {
   // Deploy the Fire NFT
   const LFGFireNFT: ContractFactory = await ethers.getContractFactory(
-    "LFGFireNFT2"
+    "LFGFireNFT3"
   );
   const lfgFireNft: Contract = await LFGFireNFT.deploy(
     process.env.MULTISIG_PUBKEY
@@ -17,29 +17,29 @@ async function deploy() {
   await lfgFireNft.deployed();
   console.log("lfgFireNft deployed to: ", lfgFireNft.address);
 
-  // Deploy NFT airdrop contract
-  const NftAirdrop: ContractFactory = await ethers.getContractFactory(
-    "NftAirdrop"
-  );
+  // // Deploy NFT airdrop contract
+  // const NftAirdrop: ContractFactory = await ethers.getContractFactory(
+  //   "NftAirdrop"
+  // );
 
-  const nftAirdrop: Contract = await NftAirdrop.deploy(
-    process.env.MULTISIG_PUBKEY,
-    lfgFireNft.address
-  );
-  await nftAirdrop.deployed();
-  console.log("NftAirdrop deployed to: ", nftAirdrop.address);
+  // const nftAirdrop: Contract = await NftAirdrop.deploy(
+  //   process.env.MULTISIG_PUBKEY,
+  //   lfgFireNft.address
+  // );
+  // await nftAirdrop.deployed();
+  // console.log("NftAirdrop deployed to: ", nftAirdrop.address);
 
-  // NFT distribute
-  const NftDistribute: ContractFactory = await ethers.getContractFactory(
-    "NftDistribute"
-  );
+  // // NFT distribute
+  // const NftDistribute: ContractFactory = await ethers.getContractFactory(
+  //   "NftDistribute"
+  // );
 
-  const nftDistribute: Contract = await NftDistribute.deploy(
-    process.env.MULTISIG_PUBKEY,
-    lfgFireNft.address
-  );
-  await nftDistribute.deployed();
-  console.log("NftDistribute deployed to: ", nftDistribute.address);
+  // const nftDistribute: Contract = await NftDistribute.deploy(
+  //   process.env.MULTISIG_PUBKEY,
+  //   lfgFireNft.address
+  // );
+  // await nftDistribute.deployed();
+  // console.log("NftDistribute deployed to: ", nftDistribute.address);
 }
 
 async function main(): Promise<void> {

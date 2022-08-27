@@ -1,7 +1,7 @@
 const {assert, expect} = require("chai");
 const hre = require("hardhat");
 const {web3} = require("hardhat");
-const LFGFireNFTArt = hre.artifacts.require("LFGFireNFT2");
+const LFGFireNFTArt = hre.artifacts.require("LFGFireNFT3");
 const NftDistributeArt = hre.artifacts.require("NftDistribute");
 const BN = require("bn.js");
 
