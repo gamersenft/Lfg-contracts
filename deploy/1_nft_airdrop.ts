@@ -9,15 +9,15 @@ if (!process.env.MULTISIG_PUBKEY)
 async function deploy() {
   // Deploy the Fire NFT
   const LFGFireNFT: ContractFactory = await ethers.getContractFactory(
-    "LFGFireNFT3"
+    "GamerseNFT"
   );
   const lfgFireNft: Contract = await LFGFireNFT.deploy(
     process.env.MULTISIG_PUBKEY
   );
   await lfgFireNft.deployed();
-  console.log("lfgFireNft deployed to: ", lfgFireNft.address);
+  console.log("gamerseNft deployed to: ", lfgFireNft.address);
 
-  // // Deploy NFT airdrop contract
+  // // // Deploy NFT airdrop contract
   // const NftAirdrop: ContractFactory = await ethers.getContractFactory(
   //   "NftAirdrop"
   // );

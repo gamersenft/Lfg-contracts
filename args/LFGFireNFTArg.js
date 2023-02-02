@@ -1,3 +1,3 @@
 module.exports = [
-    "0x8668334e671A62f6994166D82d177789d975128F", // owner
+    "0x3ca3822163D049364E67bE19a0D3B2F03B7e99b5", // owner
   ];
